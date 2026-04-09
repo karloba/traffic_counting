@@ -90,6 +90,11 @@ body {
     background: rgba(255,255,255,0.2);
 }
 
+.header-actions {
+    display: flex;
+    gap: 4px;
+}
+
 /* ===== SETUP FORM ===== */
 .setup-form {
     padding: 16px;

@@ -111,6 +111,7 @@ function bindEvents() {
     // Results
     $('#btn-back-setup').addEventListener('click', () => showScreen('setup-screen'));
     $('#btn-export-csv').addEventListener('click', exportCSV);
+    $('#btn-share').addEventListener('click', shareCSV);
     $$('.results-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             $$('.results-tab').forEach(t => t.classList.remove('active'));
@@ -747,11 +748,8 @@ function renderIntervalTables(container, session) {
     container.innerHTML = html;
 }
 
-// ===== CSV EXPORT =====
-function exportCSV() {
-    const session = currentSession;
-    if (!session) return;
-
+// ===== CSV EXPORT & SHARE =====
+function buildCSV(session) {
     const vtHeaders = session.vehicleTypes.map(vt => {
         const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
         return v ? v.label : vt;
@@ -788,14 +786,53 @@ function exportCSV() {
         });
     });
 
-    const csv = rows.join('\n');
+    return rows.join('\n');
+}
+
+function getCSVFilename(session) {
+    return `traffic_count_${session.siteName.replace(/\s+/g, '_')}_${session.date}.csv`;
+}
+
+function exportCSV() {
+    const session = currentSession;
+    if (!session) return;
+
+    const csv = buildCSV(session);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `traffic_count_${session.siteName.replace(/\s+/g, '_')}_${session.date}.csv`;
+    a.download = getCSVFilename(session);
     a.click();
     URL.revokeObjectURL(url);
+}
+
+async function shareCSV() {
+    const session = currentSession;
+    if (!session) return;
+
+    const csv = buildCSV(session);
+    const filename = getCSVFilename(session);
+    const file = new File(['\uFEFF' + csv], filename, { type: 'text/csv' });
+
+    // Use Web Share API if available (works on iOS Safari, Android Chrome)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                title: `Traffic Count - ${session.siteName}`,
+                text: `Traffic count data: ${session.siteName}, ${session.date}, ${session.intervals.length} intervals`,
+                files: [file]
+            });
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                alert('Sharing failed. Try the download button instead.');
+            }
+        }
+    } else {
+        // Fallback: download the file
+        alert('Sharing is not supported on this browser. The file will be downloaded instead — you can then send it manually.');
+        exportCSV();
+    }
 }
 
 // ===== WAKE LOCK =====
