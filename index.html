@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Traffic Counter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- SCREEN 1: Session Setup -->
+    <div id="setup-screen" class="screen active">
+        <header class="app-header">
+            <h1>Traffic Counter</h1>
+            <button id="btn-history" class="btn-icon" title="Session History">&#128203;</button>
+        </header>
+
+        <form id="setup-form" class="setup-form">
+            <div class="form-group">
+                <label for="site-name">Site Name</label>
+                <input type="text" id="site-name" placeholder="e.g. Main St & 2nd Ave" required>
+            </div>
+
+            <div class="form-group">
+                <label for="count-date">Date</label>
+                <input type="date" id="count-date">
+            </div>
+
+            <div class="form-group">
+                <label for="start-time">Start Time</label>
+                <input type="time" id="start-time">
+            </div>
+
+            <div class="form-group">
+                <label for="num-approaches">Number of Approaches</label>
+                <select id="num-approaches">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4" selected>4</option>
+                </select>
+            </div>
+
+            <div id="approach-names" class="form-group">
+                <label>Approach Names</label>
+                <div id="approach-inputs"></div>
+            </div>
+
+            <div class="form-group">
+                <label>Turning Movements</label>
+                <div id="movement-toggles" class="toggle-group">
+                    <label class="toggle"><input type="checkbox" value="left" checked><span>Left</span></label>
+                    <label class="toggle"><input type="checkbox" value="straight" checked><span>Straight</span></label>
+                    <label class="toggle"><input type="checkbox" value="right" checked><span>Right</span></label>
+                    <label class="toggle"><input type="checkbox" value="uturn"><span>U-turn</span></label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="interval-minutes">Time Interval (minutes)</label>
+                <select id="interval-minutes">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15" selected>15</option>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Vehicle Types</label>
+                <div id="vehicle-toggles" class="toggle-group"></div>
+            </div>
+
+            <button type="submit" class="btn-primary btn-large">Start Counting</button>
+        </form>
+    </div>
+
+    <!-- SCREEN 2: Counting Interface -->
+    <div id="count-screen" class="screen">
+        <div class="count-header">
+            <div class="timer-bar">
+                <span id="interval-label">14:00 - 14:15</span>
+                <span id="timer-remaining">15:00</span>
+            </div>
+            <div class="progress-bar"><div id="progress-fill"></div></div>
+        </div>
+
+        <div id="approach-tabs" class="approach-tabs"></div>
+
+        <div id="count-grid" class="count-grid"></div>
+
+        <div class="count-footer">
+            <button id="btn-undo" class="btn-footer" title="Undo last">&#8630; Undo</button>
+            <button id="btn-pause" class="btn-footer" title="Pause">&#9646;&#9646; Pause</button>
+            <button id="btn-summary" class="btn-footer" title="Quick summary">&#931; Summary</button>
+            <button id="btn-end" class="btn-footer btn-danger" title="End session">&#9632; End</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: Results & Export -->
+    <div id="results-screen" class="screen">
+        <header class="app-header">
+            <button id="btn-back-setup" class="btn-icon" title="New session">&#8592;</button>
+            <h1>Results</h1>
+            <button id="btn-export-csv" class="btn-icon" title="Export CSV">&#128190;</button>
+        </header>
+
+        <div id="results-info" class="results-info"></div>
+        <div id="results-tabs" class="results-view-tabs">
+            <button class="results-tab active" data-view="summary">Summary</button>
+            <button class="results-tab" data-view="intervals">By Interval</button>
+        </div>
+        <div id="results-content" class="results-content"></div>
+    </div>
+
+    <!-- SCREEN: Session History -->
+    <div id="history-screen" class="screen">
+        <header class="app-header">
+            <button id="btn-back-from-history" class="btn-icon">&#8592;</button>
+            <h1>Session History</h1>
+        </header>
+        <div id="history-list" class="history-list"></div>
+    </div>
+
+    <!-- Quick Summary Modal -->
+    <div id="summary-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Quick Summary</h2>
+                <button id="btn-close-modal" class="btn-icon">&times;</button>
+            </div>
+            <div id="summary-body"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
