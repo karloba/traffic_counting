@@ -6,15 +6,15 @@
 }
 
 :root {
-    --primary: #1a73e8;
-    --primary-dark: #1557b0;
+    --primary: #004f9f;
+    --primary-dark: #003b78;
     --danger: #d93025;
     --danger-dark: #a50e0e;
     --success: #188038;
     --bg: #f8f9fa;
     --surface: #ffffff;
     --text: #202124;
-    --text-secondary: #5f6368;
+    --text-secondary: #949ba4;
     --border: #dadce0;
     --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
     --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
@@ -385,7 +385,7 @@ body {
 
 .count-btn.has-count {
     border-color: var(--primary);
-    background: #e8f0fe;
+    background: #e0eaf5;
 }
 
 /* ===== COUNT FOOTER ===== */
@@ -507,7 +507,7 @@ body {
 
 .results-table .total-row {
     font-weight: 700;
-    background: #e8f0fe !important;
+    background: #e0eaf5 !important;
 }
 
 /* ===== HISTORY ===== */
