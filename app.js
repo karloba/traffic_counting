@@ -1244,16 +1244,33 @@ async function shareData() {
         file = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
     }
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-            await navigator.share({ title, text, files: [file] });
-        } catch (e) {
-            if (e.name !== 'AbortError') {
-                alert('Sharing failed. Try the download buttons instead.');
+    // Try sharing the file — test with canShare, try different MIME types if needed
+    const shareFile = async (f) => {
+        if (navigator.canShare && navigator.canShare({ files: [f] })) {
+            await navigator.share({ title, text, files: [f] });
+            return true;
+        }
+        return false;
+    };
+
+    try {
+        // Try xlsx first
+        if (!await shareFile(file)) {
+            // iOS might reject the xlsx MIME type — retry with application/octet-stream
+            const fallbackFile = new File([await file.arrayBuffer()], file.name, { type: 'application/octet-stream' });
+            if (!await shareFile(fallbackFile)) {
+                // Last resort: share CSV
+                const csv = buildCSV(session);
+                const csvFile = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
+                if (!await shareFile(csvFile)) {
+                    alert('Sharing is not supported on this browser. Use the download buttons instead.');
+                }
             }
         }
-    } else {
-        alert('Sharing is not supported on this browser. Use the download buttons instead.');
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            alert('Sharing failed. Try the download buttons instead.');
+        }
     }
 }
 
