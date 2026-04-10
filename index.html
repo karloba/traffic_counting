@@ -20,6 +20,7 @@
         <div class="mode-selector">
             <button class="mode-tab active" data-mode="traffic">Traffic Counting</button>
             <button class="mode-tab" data-mode="pt">PT Passengers</button>
+            <button class="mode-tab" data-mode="merge">Merge Files</button>
         </div>
 
         <!-- Traffic Counting Setup -->
@@ -127,6 +128,23 @@
 
             <button type="submit" class="btn-primary btn-large">Start Counting</button>
         </form>
+
+        <!-- Merge Files -->
+        <div id="merge-form" class="setup-form" style="display:none">
+            <p class="hint-text" style="padding:0 0 8px">Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.</p>
+
+            <div class="form-group">
+                <label>Select Excel files to merge</label>
+                <label class="file-drop-area" id="merge-drop-area">
+                    <span id="merge-file-label">Tap to select .xlsx files</span>
+                    <input type="file" id="merge-file-input" accept=".xlsx,.csv" multiple>
+                </label>
+            </div>
+
+            <div id="merge-file-list" class="merge-file-list"></div>
+
+            <button type="button" id="btn-merge-files" class="btn-primary btn-large" disabled>Merge &amp; View Results</button>
+        </div>
 
         <footer class="app-footer">Made by: Karlo Babojeli&#263;, University of Zagreb Faculty of Transport and Traffic Sciences</footer>
     </div>

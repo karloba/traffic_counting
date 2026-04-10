@@ -47,6 +47,9 @@ let wakeLock = null;
 let mergeMode = false;
 let mergeSelected = new Set();
 
+// Merge file state
+let mergeFiles = []; // { name, session } objects pending merge
+
 // PT-specific state
 let ptLines = [];
 let ptCurrentVehicle = null; // { line, boarding, alighting }
@@ -112,6 +115,7 @@ function bindEvents() {
             currentMode = tab.dataset.mode;
             $('#setup-form').style.display = currentMode === 'traffic' ? '' : 'none';
             $('#pt-setup-form').style.display = currentMode === 'pt' ? '' : 'none';
+            $('#merge-form').style.display = currentMode === 'merge' ? '' : 'none';
             $('#traffic-hint').style.display = currentMode === 'traffic' ? '' : 'none';
             $('#pt-hint').style.display = currentMode === 'pt' ? '' : 'none';
         });
@@ -132,6 +136,10 @@ function bindEvents() {
     $('#pt-line-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); addPTLine(); }
     });
+
+    // Merge files
+    $('#merge-file-input').addEventListener('change', handleMergeFileSelect);
+    $('#btn-merge-files').addEventListener('click', mergeImportedFiles);
 
     // History
     $('#btn-history').addEventListener('click', showHistory);
@@ -950,6 +958,243 @@ function parseTrafficCSV(csvText) {
         imported: true,
         createdAt: new Date().toISOString()
     };
+}
+
+// ===== MERGE FILES FROM IMPORT =====
+
+function handleMergeFileSelect(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                let session;
+                if (file.name.endsWith('.xlsx')) {
+                    session = parseXLSXToSession(evt.target.result);
+                } else if (file.name.endsWith('.csv')) {
+                    session = parseTrafficCSV(evt.target.result);
+                } else {
+                    alert(`Unsupported file: ${file.name}`);
+                    return;
+                }
+                mergeFiles.push({ name: file.name, session });
+                renderMergeFileList();
+            } catch (err) {
+                alert(`Failed to read ${file.name}: ${err.message}`);
+            }
+        };
+        if (file.name.endsWith('.xlsx')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
+    });
+
+    e.target.value = '';
+}
+
+function parseXLSXToSession(arrayBuffer) {
+    if (typeof XLSX === 'undefined') throw new Error('Excel library not loaded');
+
+    const wb = XLSX.utils.book_read(arrayBuffer, { type: 'array' });
+
+    // Read the "Raw Data" sheet
+    const ws = wb.Sheets['Raw Data'];
+    if (!ws) throw new Error('No "Raw Data" sheet found. Is this a Traffic Counter export?');
+
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (rows.length < 2) throw new Error('Raw Data sheet is empty');
+
+    const headers = rows[0].map(String);
+
+    const siteIdx = headers.indexOf('Site');
+    const dateIdx = headers.indexOf('Date');
+    const startIdx = headers.indexOf('Interval Start');
+    const endIdx = headers.indexOf('Interval End');
+    const approachIdx = headers.indexOf('Approach');
+    const dirIdx = headers.indexOf('Direction');
+    const totalIdx = headers.indexOf('Total');
+
+    if (siteIdx < 0 || approachIdx < 0 || dirIdx < 0) throw new Error('Unrecognized column headers');
+
+    const vtHeaders = headers.slice(dirIdx + 1, totalIdx);
+    const labelToId = {};
+    DEFAULT_VEHICLE_TYPES.forEach(vt => { labelToId[vt.label] = vt.id; });
+    const vtIds = vtHeaders.map(h => labelToId[h] || h.toLowerCase().replace(/[^a-z]/g, ''));
+
+    const dirLabelToKey = {};
+    for (const [key, label] of Object.entries(DIRECTION_LABELS)) {
+        dirLabelToKey[label] = key;
+    }
+
+    const dataRows = rows.slice(1).filter(r => r.length >= headers.length);
+    const siteName = dataRows[0]?.[siteIdx] || 'Imported';
+    const date = dataRows[0]?.[dateIdx] || '';
+
+    const approaches = [...new Set(dataRows.map(r => String(r[approachIdx])))];
+    const movementLabels = [...new Set(dataRows.map(r => String(r[dirIdx])))];
+    const movements = movementLabels.map(l => dirLabelToKey[l] || l.toLowerCase()).filter(m => m !== 'crossing');
+    const hasCrossing = movementLabels.some(l => dirLabelToKey[l] === 'crossing');
+
+    const intervalKeys = [...new Set(dataRows.map(r => `${r[startIdx]}|${r[endIdx]}`))];
+
+    // Detect interval minutes
+    const firstStart = String(dataRows[0]?.[startIdx] || '');
+    const firstEnd = String(dataRows[0]?.[endIdx] || '');
+    let intervalMinutes = 15;
+    if (firstStart && firstEnd) {
+        const [sh, sm] = firstStart.split(':').map(Number);
+        const [eh, em] = firstEnd.split(':').map(Number);
+        const diff = (eh * 60 + em) - (sh * 60 + sm);
+        if (diff > 0) intervalMinutes = diff;
+    }
+
+    const intervals = intervalKeys.map(key => {
+        const [intStart, intEnd] = key.split('|');
+        const counts = {};
+        approaches.forEach(a => {
+            counts[a] = {};
+            movements.forEach(m => { counts[a][m] = {}; vtIds.forEach(vt => { counts[a][m][vt] = 0; }); });
+            const crossingTypes = vtIds.filter(vt => CROSSING_TYPES.has(vt));
+            if (crossingTypes.length > 0) {
+                counts[a]['crossing'] = {};
+                crossingTypes.forEach(vt => { counts[a]['crossing'][vt] = 0; });
+            }
+        });
+
+        dataRows.filter(r => `${r[startIdx]}|${r[endIdx]}` === key).forEach(r => {
+            const approach = String(r[approachIdx]);
+            const movLabel = String(r[dirIdx]);
+            const movement = dirLabelToKey[movLabel] || movLabel.toLowerCase();
+
+            vtIds.forEach((vtId, vi) => {
+                const val = parseInt(r[dirIdx + 1 + vi]) || 0;
+                if (counts[approach]?.[movement]) {
+                    counts[approach][movement][vtId] = val;
+                }
+            });
+        });
+
+        const startDate = new Date(`${date}T${intStart}:00`);
+        const endDate = new Date(`${date}T${intEnd}:00`);
+        return { startTime: startDate.toISOString(), endTime: endDate.toISOString(), counts };
+    });
+
+    return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        siteName, date,
+        startTime: String(dataRows[0]?.[startIdx] || '00:00'),
+        intervalMinutes, approaches, movements, vehicleTypes: vtIds,
+        intervals, imported: true,
+        createdAt: new Date().toISOString()
+    };
+}
+
+function renderMergeFileList() {
+    const container = $('#merge-file-list');
+    container.innerHTML = mergeFiles.map((f, i) => `
+        <div class="merge-file-item">
+            <div>
+                <div class="file-name">${f.name}</div>
+                <div class="file-info">${f.session.siteName} | ${f.session.approaches.join(', ')} | ${f.session.intervals.length} intervals</div>
+            </div>
+            <button onclick="removeMergeFile(${i})">&times;</button>
+        </div>
+    `).join('');
+
+    $('#btn-merge-files').disabled = mergeFiles.length < 2;
+    $('#merge-file-label').textContent = mergeFiles.length > 0
+        ? `${mergeFiles.length} file(s) loaded — tap to add more`
+        : 'Tap to select .xlsx files';
+}
+
+function removeMergeFile(index) {
+    mergeFiles.splice(index, 1);
+    renderMergeFileList();
+}
+
+function mergeImportedFiles() {
+    if (mergeFiles.length < 2) return;
+
+    const sessions = mergeFiles.map(f => f.session);
+
+    // Validate same interval length
+    const intMin = sessions[0].intervalMinutes;
+    if (sessions.some(s => s.intervalMinutes !== intMin)) {
+        alert('All files must have the same time interval to merge.');
+        return;
+    }
+
+    const allApproaches = [...new Set(sessions.flatMap(s => s.approaches))];
+    const allMovements = [...new Set(sessions.flatMap(s => s.movements))];
+    const allVehicleTypes = [...new Set(sessions.flatMap(s => s.vehicleTypes))];
+    const maxIntervals = Math.max(...sessions.map(s => s.intervals.length));
+
+    const mergedIntervals = [];
+    for (let i = 0; i < maxIntervals; i++) {
+        const refInterval = sessions.find(s => s.intervals[i])?.intervals[i];
+        if (!refInterval) continue;
+
+        const counts = {};
+        allApproaches.forEach(a => {
+            counts[a] = {};
+            allMovements.forEach(m => {
+                counts[a][m] = {};
+                allVehicleTypes.filter(vt => !CROSSING_TYPES.has(vt)).forEach(vt => { counts[a][m][vt] = 0; });
+            });
+            const ct = allVehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
+            if (ct.length > 0) {
+                counts[a]['crossing'] = {};
+                ct.forEach(vt => { counts[a]['crossing'][vt] = 0; });
+            }
+        });
+
+        sessions.forEach(s => {
+            if (!s.intervals[i]) return;
+            const intv = s.intervals[i];
+            for (const a of Object.keys(intv.counts)) {
+                for (const m of Object.keys(intv.counts[a])) {
+                    for (const vt of Object.keys(intv.counts[a][m])) {
+                        if (!counts[a]) counts[a] = {};
+                        if (!counts[a][m]) counts[a][m] = {};
+                        counts[a][m][vt] = (counts[a][m][vt] || 0) + intv.counts[a][m][vt];
+                    }
+                }
+            }
+        });
+
+        mergedIntervals.push({
+            startTime: refInterval.startTime,
+            endTime: refInterval.endTime,
+            counts
+        });
+    }
+
+    const names = sessions.map(s => s.siteName).filter((v, i, a) => a.indexOf(v) === i);
+    const mergedSession = {
+        id: Date.now().toString(36),
+        siteName: names.length === 1 ? names[0] + ' (merged)' : names.join(' + '),
+        date: sessions[0].date,
+        startTime: sessions[0].startTime,
+        intervalMinutes: intMin,
+        approaches: allApproaches,
+        movements: allMovements,
+        vehicleTypes: allVehicleTypes,
+        intervals: mergedIntervals,
+        merged: true,
+        createdAt: new Date().toISOString()
+    };
+
+    // Save and show
+    const allSessions = getSessions();
+    allSessions.push(mergedSession);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
+
+    mergeFiles = [];
+    renderMergeFileList();
+    showResults(mergedSession);
 }
 
 // ===== RESULTS =====

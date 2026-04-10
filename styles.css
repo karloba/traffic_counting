@@ -1118,6 +1118,69 @@ body {
     height: auto;
 }
 
+/* ===== MERGE FILES ===== */
+.file-drop-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background: #f9fafb;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: border-color 0.15s;
+}
+
+.file-drop-area:active,
+.file-drop-area.dragover {
+    border-color: var(--primary);
+    background: #e0eaf5;
+}
+
+.file-drop-area input[type="file"] {
+    display: none;
+}
+
+.merge-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.merge-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+}
+
+.merge-file-item .file-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.merge-file-item .file-info {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.merge-file-item button {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
 /* ===== TOGGLE INLINE ===== */
 .toggle-inline {
     display: flex;
