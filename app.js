@@ -1412,6 +1412,39 @@ function renderAnalysis(container, session) {
         html += `</div></div>`;
     }
 
+    // Vehicle type split
+    if (split.grandTotal > 0) {
+        // Calculate totals per vehicle type across all approaches and movements
+        const vtTotals = {};
+        session.vehicleTypes.forEach(vt => vtTotals[vt] = 0);
+        session.intervals.forEach(interval => {
+            for (const approach of Object.keys(interval.counts)) {
+                for (const movement of Object.keys(interval.counts[approach])) {
+                    for (const vt of Object.keys(interval.counts[approach][movement])) {
+                        vtTotals[vt] = (vtTotals[vt] || 0) + interval.counts[approach][movement][vt];
+                    }
+                }
+            }
+        });
+
+        html += `<div class="analysis-card">
+            <div class="analysis-title">Vehicle Type Split</div>
+            <div class="split-grid">`;
+
+        session.vehicleTypes.forEach(vtId => {
+            const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
+            const total = vtTotals[vtId] || 0;
+            if (total === 0) return;
+            const pct = ((total / split.grandTotal) * 100).toFixed(1);
+            html += `<div class="split-card">
+                <div class="split-label">${vt ? vt.label : vtId}</div>
+                <div class="split-value">${total} <span class="split-pct">(${pct}%)</span></div>
+            </div>`;
+        });
+
+        html += `</div></div>`;
+    }
+
     container.innerHTML = html;
 }
 
@@ -1422,101 +1455,169 @@ function renderTurningDiagram(container, session) {
     const approaches = session.approaches;
     const n = approaches.length;
 
-    // Map approaches to positions: 0=top(North), 1=right(East), 2=bottom(South), 3=left(West)
-    const W = 380, H = 380;
+    const W = 400, H = 400;
     const cx = W / 2, cy = H / 2;
-    const boxSize = 60; // intersection box
+    const boxSize = 50;
+    const roadLen = 130;
+    const roadWidth = 44;
+
+    // Find max volume for scaling stroke width
+    let maxVol = 1;
+    approaches.forEach(a => {
+        Object.values(split.approachMovements[a] || {}).forEach(v => { if (v > maxVol) maxVol = v; });
+    });
+    const minStroke = 1.5, maxStroke = 8;
+    const strokeFor = (vol) => vol === 0 ? minStroke : minStroke + (vol / maxVol) * (maxStroke - minStroke);
 
     let svg = `<div class="diagram-container"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+    // Arrowhead markers for each color and multiple sizes
+    svg += `<defs>`;
+    ['#4285f4', '#34a853', '#ea4335'].forEach((color, ci) => {
+        const name = ['Blue', 'Green', 'Red'][ci];
+        svg += `<marker id="arrow${name}" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <polygon points="0 0, 10 3.5, 0 7" fill="${color}"/>
+        </marker>`;
+    });
+    svg += `</defs>`;
+
+    const colorToMarker = { '#4285f4': 'arrowBlue', '#34a853': 'arrowGreen', '#ea4335': 'arrowRed' };
+
+    // Draw roads
+    // Top
+    svg += `<rect x="${cx - roadWidth / 2}" y="${cy - boxSize / 2 - roadLen}" width="${roadWidth}" height="${roadLen}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Bottom
+    svg += `<rect x="${cx - roadWidth / 2}" y="${cy + boxSize / 2}" width="${roadWidth}" height="${roadLen}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Left
+    svg += `<rect x="${cx - boxSize / 2 - roadLen}" y="${cy - roadWidth / 2}" width="${roadLen}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Right
+    svg += `<rect x="${cx + boxSize / 2}" y="${cy - roadWidth / 2}" width="${roadLen}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
 
     // Intersection box
     svg += `<rect x="${cx - boxSize / 2}" y="${cy - boxSize / 2}" width="${boxSize}" height="${boxSize}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2" rx="4"/>`;
 
-    // Road lines extending from intersection
-    const roadWidth = 40;
-    // Top road
-    svg += `<rect x="${cx - roadWidth / 2}" y="0" width="${roadWidth}" height="${cy - boxSize / 2}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
-    // Bottom road
-    svg += `<rect x="${cx - roadWidth / 2}" y="${cy + boxSize / 2}" width="${roadWidth}" height="${cy - boxSize / 2}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
-    // Left road
-    svg += `<rect x="0" y="${cy - roadWidth / 2}" width="${cx - boxSize / 2}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
-    // Right road
-    svg += `<rect x="${cx + boxSize / 2}" y="${cy - roadWidth / 2}" width="${cx - boxSize / 2}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Edge positions for each approach (where arrows start/end)
+    const edge = boxSize / 2 + 12;
+    const off = 10; // lane offset from center
 
-    // Arrow positions for each approach direction
-    // Each approach has: position on the diagram, and arrow configs for movements
-    const positions = [
-        { // Top (index 0) - traffic comes from top going down
-            labelX: cx, labelY: 15,
-            arrows: {
-                left:     { x1: cx - 8, y1: cy - boxSize / 2 - 10, x2: cx - boxSize / 2 - 10, y2: cy - 8, color: '#4285f4' },
-                straight: { x1: cx + 5, y1: cy - boxSize / 2 - 10, x2: cx + 5, y2: cy + boxSize / 2 + 10, color: '#34a853' },
-                right:    { x1: cx + 8, y1: cy - boxSize / 2 - 10, x2: cx + boxSize / 2 + 10, y2: cy - 8, color: '#ea4335' }
+    // For each approach: define start point and arrow paths for L/S/R
+    // Approaches: 0=Top(comes from north), 1=Right(east), 2=Bottom(south), 3=Left(west)
+    const arrowDefs = [
+        { // 0: Top - enters from top going down
+            label: { x: cx, y: cy - boxSize / 2 - roadLen + 14, anchor: 'middle' },
+            left: {
+                // Curve right-to-left: start above, curve to exit left
+                start: { x: cx - off, y: cy - edge - 60 },
+                path: (sw) => `M ${cx - off} ${cy - edge - 60} L ${cx - off} ${cy - 10} Q ${cx - off} ${cy + 10}, ${cx - edge - 60} ${cy - off}`,
+                labelPos: { x: cx - edge - 30, y: cy - off - 8 },
+                color: '#4285f4'
+            },
+            straight: {
+                start: { x: cx + off / 2, y: cy - edge - 60 },
+                path: () => `M ${cx + off / 2} ${cy - edge - 60} L ${cx + off / 2} ${cy + edge + 60}`,
+                labelPos: { x: cx + off / 2 + 12, y: cy + edge + 40 },
+                color: '#34a853'
+            },
+            right: {
+                start: { x: cx + off, y: cy - edge - 60 },
+                path: () => `M ${cx + off} ${cy - edge - 60} L ${cx + off} ${cy - 10} Q ${cx + off} ${cy + 10}, ${cx + edge + 60} ${cy + off}`,
+                labelPos: { x: cx + edge + 30, y: cy + off - 8 },
+                color: '#ea4335'
             }
         },
-        { // Right (index 1) - traffic comes from right going left
-            labelX: W - 15, labelY: cy,
-            arrows: {
-                left:     { x1: cx + boxSize / 2 + 10, y1: cy - 8, x2: cx + 8, y2: cy - boxSize / 2 - 10, color: '#4285f4' },
-                straight: { x1: cx + boxSize / 2 + 10, y1: cy + 5, x2: cx - boxSize / 2 - 10, y2: cy + 5, color: '#34a853' },
-                right:    { x1: cx + boxSize / 2 + 10, y1: cy + 8, x2: cx + 8, y2: cy + boxSize / 2 + 10, color: '#ea4335' }
+        { // 1: Right - enters from right going left
+            label: { x: cx + boxSize / 2 + roadLen - 10, y: cy + 5, anchor: 'end' },
+            left: {
+                start: { x: cx + edge + 60, y: cy - off },
+                path: () => `M ${cx + edge + 60} ${cy - off} L ${cx + 10} ${cy - off} Q ${cx - 10} ${cy - off}, ${cx + off} ${cy - edge - 60}`,
+                labelPos: { x: cx + off + 10, y: cy - edge - 35 },
+                color: '#4285f4'
+            },
+            straight: {
+                start: { x: cx + edge + 60, y: cy + off / 2 },
+                path: () => `M ${cx + edge + 60} ${cy + off / 2} L ${cx - edge - 60} ${cy + off / 2}`,
+                labelPos: { x: cx - edge - 40, y: cy + off / 2 - 8 },
+                color: '#34a853'
+            },
+            right: {
+                start: { x: cx + edge + 60, y: cy + off },
+                path: () => `M ${cx + edge + 60} ${cy + off} L ${cx + 10} ${cy + off} Q ${cx - 10} ${cy + off}, ${cx - off} ${cy + edge + 60}`,
+                labelPos: { x: cx - off - 10, y: cy + edge + 40 },
+                color: '#ea4335'
             }
         },
-        { // Bottom (index 2) - traffic comes from bottom going up
-            labelX: cx, labelY: H - 8,
-            arrows: {
-                left:     { x1: cx + 8, y1: cy + boxSize / 2 + 10, x2: cx + boxSize / 2 + 10, y2: cy + 8, color: '#4285f4' },
-                straight: { x1: cx - 5, y1: cy + boxSize / 2 + 10, x2: cx - 5, y2: cy - boxSize / 2 - 10, color: '#34a853' },
-                right:    { x1: cx - 8, y1: cy + boxSize / 2 + 10, x2: cx - boxSize / 2 - 10, y2: cy + 8, color: '#ea4335' }
+        { // 2: Bottom - enters from bottom going up
+            label: { x: cx, y: cy + boxSize / 2 + roadLen - 6, anchor: 'middle' },
+            left: {
+                start: { x: cx + off, y: cy + edge + 60 },
+                path: () => `M ${cx + off} ${cy + edge + 60} L ${cx + off} ${cy + 10} Q ${cx + off} ${cy - 10}, ${cx + edge + 60} ${cy + off}`,
+                labelPos: { x: cx + edge + 30, y: cy + off + 14 },
+                color: '#4285f4'
+            },
+            straight: {
+                start: { x: cx - off / 2, y: cy + edge + 60 },
+                path: () => `M ${cx - off / 2} ${cy + edge + 60} L ${cx - off / 2} ${cy - edge - 60}`,
+                labelPos: { x: cx - off / 2 - 12, y: cy - edge - 40 },
+                color: '#34a853'
+            },
+            right: {
+                start: { x: cx - off, y: cy + edge + 60 },
+                path: () => `M ${cx - off} ${cy + edge + 60} L ${cx - off} ${cy + 10} Q ${cx - off} ${cy - 10}, ${cx - edge - 60} ${cy - off}`,
+                labelPos: { x: cx - edge - 30, y: cy - off + 14 },
+                color: '#ea4335'
             }
         },
-        { // Left (index 3) - traffic comes from left going right
-            labelX: 15, labelY: cy,
-            arrows: {
-                left:     { x1: cx - boxSize / 2 - 10, y1: cy + 8, x2: cx - 8, y2: cy + boxSize / 2 + 10, color: '#4285f4' },
-                straight: { x1: cx - boxSize / 2 - 10, y1: cy - 5, x2: cx + boxSize / 2 + 10, y2: cy - 5, color: '#34a853' },
-                right:    { x1: cx - boxSize / 2 - 10, y1: cy - 8, x2: cx - 8, y2: cy - boxSize / 2 - 10, color: '#ea4335' }
+        { // 3: Left - enters from left going right
+            label: { x: cx - boxSize / 2 - roadLen + 10, y: cy + 5, anchor: 'start' },
+            left: {
+                start: { x: cx - edge - 60, y: cy + off },
+                path: () => `M ${cx - edge - 60} ${cy + off} L ${cx - 10} ${cy + off} Q ${cx + 10} ${cy + off}, ${cx - off} ${cy + edge + 60}`,
+                labelPos: { x: cx - off - 10, y: cy + edge + 40 },
+                color: '#4285f4'
+            },
+            straight: {
+                start: { x: cx - edge - 60, y: cy - off / 2 },
+                path: () => `M ${cx - edge - 60} ${cy - off / 2} L ${cx + edge + 60} ${cy - off / 2}`,
+                labelPos: { x: cx + edge + 40, y: cy - off / 2 - 8 },
+                color: '#34a853'
+            },
+            right: {
+                start: { x: cx - edge - 60, y: cy - off },
+                path: () => `M ${cx - edge - 60} ${cy - off} L ${cx - 10} ${cy - off} Q ${cx + 10} ${cy - off}, ${cx + off} ${cy - edge - 60}`,
+                labelPos: { x: cx + off + 10, y: cy - edge - 35 },
+                color: '#ea4335'
             }
         }
     ];
 
-    // Arrow marker
-    svg += `<defs>
-        <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4285f4"/></marker>
-        <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#34a853"/></marker>
-        <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ea4335"/></marker>
-    </defs>`;
-
-    const markerMap = { '#4285f4': 'arrowBlue', '#34a853': 'arrowGreen', '#ea4335': 'arrowRed' };
-
     for (let i = 0; i < Math.min(n, 4); i++) {
         const approach = approaches[i];
-        const pos = positions[i];
+        const def = arrowDefs[i];
 
         // Approach label
-        const anchor = i === 0 || i === 2 ? 'middle' : (i === 1 ? 'end' : 'start');
-        svg += `<text x="${pos.labelX}" y="${pos.labelY}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="${'var(--primary)'}">${approach}</text>`;
+        svg += `<text x="${def.label.x}" y="${def.label.y}" text-anchor="${def.label.anchor}" font-size="13" font-weight="700" fill="#004f9f">${approach}</text>`;
 
-        // Draw arrows for each movement
+        // Draw each movement arrow
         const movements = session.movements || [];
         movements.forEach(movement => {
-            if (!pos.arrows[movement]) return;
-            const a = pos.arrows[movement];
+            if (!def[movement]) return;
+            const arrow = def[movement];
             const vol = split.approachMovements[approach]?.[movement] || 0;
+            const sw = strokeFor(vol);
+            const marker = colorToMarker[arrow.color];
 
-            svg += `<line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="${a.color}" stroke-width="2" marker-end="url(#${markerMap[a.color]})"/>`;
+            svg += `<path d="${arrow.path(sw)}" fill="none" stroke="${arrow.color}" stroke-width="${sw.toFixed(1)}" stroke-linecap="round" marker-end="url(#${marker})" opacity="${vol === 0 ? 0.2 : 0.85}"/>`;
 
-            // Volume label at midpoint
-            const mx = (a.x1 + a.x2) / 2;
-            const my = (a.y1 + a.y2) / 2;
-            svg += `<text x="${mx}" y="${my - 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${a.color}">${vol}</text>`;
+            // Volume label
+            svg += `<text x="${arrow.labelPos.x}" y="${arrow.labelPos.y}" text-anchor="middle" font-size="10" font-weight="700" fill="${arrow.color}">${vol}</text>`;
         });
     }
 
     // Legend
-    svg += `<text x="10" y="${H - 40}" font-size="9" fill="#4285f4" font-weight="600">&#9632; Left</text>`;
-    svg += `<text x="10" y="${H - 28}" font-size="9" fill="#34a853" font-weight="600">&#9632; Straight</text>`;
-    svg += `<text x="10" y="${H - 16}" font-size="9" fill="#ea4335" font-weight="600">&#9632; Right</text>`;
+    const ly = H - 14;
+    svg += `<text x="${cx - 80}" y="${ly}" font-size="9" fill="#4285f4" font-weight="600">&#9632; Left</text>`;
+    svg += `<text x="${cx - 20}" y="${ly}" font-size="9" fill="#34a853" font-weight="600">&#9632; Straight</text>`;
+    svg += `<text x="${cx + 55}" y="${ly}" font-size="9" fill="#ea4335" font-weight="600">&#9632; Right</text>`;
 
     svg += `</svg></div>`;
     container.innerHTML = svg;
