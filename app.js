@@ -108,6 +108,8 @@ function bindEvents() {
             currentMode = tab.dataset.mode;
             $('#setup-form').style.display = currentMode === 'traffic' ? '' : 'none';
             $('#pt-setup-form').style.display = currentMode === 'pt' ? '' : 'none';
+            $('#traffic-hint').style.display = currentMode === 'traffic' ? '' : 'none';
+            $('#pt-hint').style.display = currentMode === 'pt' ? '' : 'none';
         });
     });
 

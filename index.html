@@ -22,6 +22,7 @@
         </div>
 
         <!-- Traffic Counting Setup -->
+        <p class="hint-text" id="traffic-hint">Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.</p>
         <form id="setup-form" class="setup-form">
             <div class="form-group">
                 <label for="site-name">Site Name</label>
@@ -82,6 +83,7 @@
         </form>
 
         <!-- PT Passenger Setup -->
+        <p class="hint-text" id="pt-hint" style="display:none">Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.</p>
         <form id="pt-setup-form" class="setup-form" style="display:none">
             <div class="form-group">
                 <label for="pt-stop-name">Stop Name</label>
@@ -134,6 +136,8 @@
             <div class="progress-bar"><div id="progress-fill"></div></div>
         </div>
 
+        <p class="hint-text-counting">Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.</p>
+
         <div id="approach-tabs" class="approach-tabs"></div>
 
         <div id="count-grid" class="count-grid"></div>
@@ -157,6 +161,8 @@
         </div>
 
         <div id="pt-stop-label" class="pt-stop-label"></div>
+
+        <p class="hint-text-counting">Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.</p>
 
         <!-- Line selector (shown when no vehicle is being counted) -->
         <div id="pt-line-selector" class="pt-line-selector">
