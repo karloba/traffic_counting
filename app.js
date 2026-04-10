@@ -1082,6 +1082,17 @@ function renderSummaryTable(container, session) {
         <td>${grandTotal}</td>
     </tr>`;
 
+    if (grandTotal > 0) {
+        html += `<tr class="total-row" style="font-style:italic;font-weight:400;">
+            <td colspan="2">%</td>
+            ${session.vehicleTypes.map(vt => {
+                const pct = ((grandTotals[vt] / grandTotal) * 100).toFixed(1);
+                return `<td>${grandTotals[vt] > 0 ? pct + '%' : ''}</td>`;
+            }).join('')}
+            <td>100%</td>
+        </tr>`;
+    }
+
     html += `</tbody></table>`;
     container.innerHTML = html;
 }
