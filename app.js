@@ -975,6 +975,7 @@ function showResults(session) {
 
     // Show/hide diagram tab (only for traffic mode)
     $('#tab-diagram').style.display = session.mode === 'pt' ? 'none' : '';
+    $('#tab-vehicle-split').style.display = session.mode === 'pt' ? 'none' : '';
 
     // Render analysis cards (traffic mode only)
     const analysisContainer = $('#results-analysis');
@@ -1005,6 +1006,8 @@ function renderResults(view) {
     } else {
         if (view === 'summary') {
             renderSummaryTable(container, session);
+        } else if (view === 'vehicle-split') {
+            renderVehicleSplitTable(container, session);
         } else if (view === 'diagram') {
             renderTurningDiagram(container, session);
         } else {
@@ -1234,6 +1237,82 @@ async function shareCSV() {
         alert('Sharing is not supported on this browser. The file will be downloaded instead — you can then send it manually.');
         exportCSV();
     }
+}
+
+// ===== VEHICLE SPLIT TABLE =====
+
+function renderVehicleSplitTable(container, session) {
+    // Calculate per-approach vehicle type totals
+    const vtByApproach = {};
+    const approachTotals = {};
+
+    session.approaches.forEach(approach => {
+        vtByApproach[approach] = {};
+        approachTotals[approach] = 0;
+        session.vehicleTypes.forEach(vt => vtByApproach[approach][vt] = 0);
+    });
+
+    session.intervals.forEach(interval => {
+        for (const approach of Object.keys(interval.counts)) {
+            for (const movement of Object.keys(interval.counts[approach])) {
+                for (const vt of Object.keys(interval.counts[approach][movement])) {
+                    const val = interval.counts[approach][movement][vt];
+                    vtByApproach[approach][vt] = (vtByApproach[approach][vt] || 0) + val;
+                    approachTotals[approach] = (approachTotals[approach] || 0) + val;
+                }
+            }
+        }
+    });
+
+    const vtHeaders = session.vehicleTypes.map(vt => {
+        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
+        return v ? v.label : vt;
+    });
+
+    let html = `<h3 style="margin:12px 0 8px;font-size:0.95rem;">Vehicle Type Proportions by Approach</h3>`;
+    html += `<table class="results-table"><thead><tr>
+        <th>Approach</th>
+        ${vtHeaders.map(h => `<th>${h}</th>`).join('')}
+        <th>Total</th>
+    </tr></thead><tbody>`;
+
+    let grandVt = {};
+    session.vehicleTypes.forEach(vt => grandVt[vt] = 0);
+    let grandTotal = 0;
+
+    session.approaches.forEach(approach => {
+        const total = approachTotals[approach];
+        grandTotal += total;
+
+        html += `<tr><td><strong>${approach}</strong></td>`;
+        session.vehicleTypes.forEach(vt => {
+            const count = vtByApproach[approach][vt];
+            grandVt[vt] += count;
+            if (count > 0 && total > 0) {
+                const pct = ((count / total) * 100).toFixed(1);
+                html += `<td>${count}<br><span style="font-size:0.7rem;color:var(--primary)">${pct}%</span></td>`;
+            } else {
+                html += `<td></td>`;
+            }
+        });
+        html += `<td><strong>${total}</strong></td></tr>`;
+    });
+
+    // Grand total row
+    html += `<tr class="total-row"><td>TOTAL</td>`;
+    session.vehicleTypes.forEach(vt => {
+        const count = grandVt[vt];
+        if (count > 0 && grandTotal > 0) {
+            const pct = ((count / grandTotal) * 100).toFixed(1);
+            html += `<td>${count}<br><span style="font-size:0.7rem">${pct}%</span></td>`;
+        } else {
+            html += `<td></td>`;
+        }
+    });
+    html += `<td>${grandTotal}<br><span style="font-size:0.7rem">100%</span></td></tr>`;
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
 }
 
 // ===== TRAFFIC ANALYSIS =====
