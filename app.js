@@ -1242,23 +1242,23 @@ async function shareCSV() {
 // ===== VEHICLE SPLIT TABLE =====
 
 function renderVehicleSplitTable(container, session) {
-    // Calculate per-approach vehicle type totals
-    const vtByApproach = {};
-    const approachTotals = {};
+    const allMovements = getAllMovements(session);
 
+    // Calculate totals per approach+movement+vehicleType
+    const data = {}; // data[approach][movement][vt] = count
     session.approaches.forEach(approach => {
-        vtByApproach[approach] = {};
-        approachTotals[approach] = 0;
-        session.vehicleTypes.forEach(vt => vtByApproach[approach][vt] = 0);
+        data[approach] = {};
+        allMovements.forEach(movement => {
+            data[approach][movement] = {};
+            session.vehicleTypes.forEach(vt => data[approach][movement][vt] = 0);
+        });
     });
 
     session.intervals.forEach(interval => {
         for (const approach of Object.keys(interval.counts)) {
             for (const movement of Object.keys(interval.counts[approach])) {
                 for (const vt of Object.keys(interval.counts[approach][movement])) {
-                    const val = interval.counts[approach][movement][vt];
-                    vtByApproach[approach][vt] = (vtByApproach[approach][vt] || 0) + val;
-                    approachTotals[approach] = (approachTotals[approach] || 0) + val;
+                    data[approach][movement][vt] = (data[approach][movement][vt] || 0) + interval.counts[approach][movement][vt];
                 }
             }
         }
@@ -1269,9 +1269,9 @@ function renderVehicleSplitTable(container, session) {
         return v ? v.label : vt;
     });
 
-    let html = `<h3 style="margin:12px 0 8px;font-size:0.95rem;">Vehicle Type Proportions by Approach</h3>`;
+    let html = `<h3 style="margin:12px 0 8px;font-size:0.95rem;">Vehicle Type Proportions by Approach &amp; Movement</h3>`;
     html += `<table class="results-table"><thead><tr>
-        <th>Approach</th>
+        <th>Approach</th><th>Movement</th>
         ${vtHeaders.map(h => `<th>${h}</th>`).join('')}
         <th>Total</th>
     </tr></thead><tbody>`;
@@ -1281,27 +1281,33 @@ function renderVehicleSplitTable(container, session) {
     let grandTotal = 0;
 
     session.approaches.forEach(approach => {
-        const total = approachTotals[approach];
-        grandTotal += total;
+        allMovements.forEach(movement => {
+            const vtForMov = getVehicleTypesForMovement(session, movement);
+            const rowTotal = vtForMov.reduce((sum, vt) => sum + (data[approach][movement]?.[vt] || 0), 0);
+            if (rowTotal === 0) return;
 
-        html += `<tr><td><strong>${approach}</strong></td>`;
-        session.vehicleTypes.forEach(vt => {
-            const count = vtByApproach[approach][vt];
-            grandVt[vt] += count;
-            if (count > 0 && total > 0) {
-                const pct = ((count / total) * 100).toFixed(1);
-                html += `<td>${count}<br><span style="font-size:0.7rem;color:var(--primary)">${pct}%</span></td>`;
-            } else {
-                html += `<td></td>`;
-            }
+            grandTotal += rowTotal;
+            const arrow = DIRECTION_ARROWS[movement] || '\u{1F6B6}';
+
+            html += `<tr><td>${approach}</td><td>${arrow} ${DIRECTION_LABELS[movement]}</td>`;
+            session.vehicleTypes.forEach(vt => {
+                const count = data[approach][movement]?.[vt] || 0;
+                grandVt[vt] = (grandVt[vt] || 0) + count;
+                if (count > 0 && rowTotal > 0) {
+                    const pct = ((count / rowTotal) * 100).toFixed(1);
+                    html += `<td>${count}<br><span style="font-size:0.7rem;color:var(--primary)">${pct}%</span></td>`;
+                } else {
+                    html += `<td></td>`;
+                }
+            });
+            html += `<td><strong>${rowTotal}</strong></td></tr>`;
         });
-        html += `<td><strong>${total}</strong></td></tr>`;
     });
 
     // Grand total row
-    html += `<tr class="total-row"><td>TOTAL</td>`;
+    html += `<tr class="total-row"><td colspan="2">TOTAL</td>`;
     session.vehicleTypes.forEach(vt => {
-        const count = grandVt[vt];
+        const count = grandVt[vt] || 0;
         if (count > 0 && grandTotal > 0) {
             const pct = ((count / grandTotal) * 100).toFixed(1);
             html += `<td>${count}<br><span style="font-size:0.7rem">${pct}%</span></td>`;
