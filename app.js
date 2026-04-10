@@ -35,12 +35,18 @@ const CROSSING_TYPES = new Set(['pedestrian', 'bicycle', 'escooter']);
 const STORAGE_KEY = 'traffic_counter_sessions';
 
 // ===== STATE =====
+let currentMode = 'traffic'; // 'traffic' or 'pt'
 let currentSession = null;
 let currentApproachIndex = 0;
 let timerInterval = null;
 let isPaused = false;
 let undoStack = [];
 let wakeLock = null;
+
+// PT-specific state
+let ptLines = [];
+let ptCurrentVehicle = null; // { line, boarding, alighting }
+let ptUseNumberInput = false;
 
 // ===== DOM ELEMENTS =====
 const $ = (sel) => document.querySelector(sel);
@@ -49,6 +55,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
     initSetupForm();
+    initPTSetupForm();
     bindEvents();
 });
 
@@ -93,21 +100,53 @@ function updateApproachInputs() {
 }
 
 function bindEvents() {
-    // Setup form submit
+    // Mode selector
+    $$('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            $$('.mode-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentMode = tab.dataset.mode;
+            $('#setup-form').style.display = currentMode === 'traffic' ? '' : 'none';
+            $('#pt-setup-form').style.display = currentMode === 'pt' ? '' : 'none';
+        });
+    });
+
+    // Traffic setup form submit
     $('#setup-form').addEventListener('submit', (e) => {
         e.preventDefault();
         startSession();
+    });
+
+    // PT setup form
+    $('#pt-setup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        startPTSession();
+    });
+    $('#btn-add-line').addEventListener('click', addPTLine);
+    $('#pt-line-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addPTLine(); }
     });
 
     // History
     $('#btn-history').addEventListener('click', showHistory);
     $('#btn-back-from-history').addEventListener('click', () => showScreen('setup-screen'));
 
-    // Counting controls
+    // Traffic counting controls
     $('#btn-undo').addEventListener('click', undoLast);
     $('#btn-pause').addEventListener('click', togglePause);
     $('#btn-summary').addEventListener('click', showQuickSummary);
     $('#btn-end').addEventListener('click', endSession);
+
+    // PT counting controls
+    $('#btn-boarding').addEventListener('click', () => ptCount('boarding'));
+    $('#btn-alighting').addEventListener('click', () => ptCount('alighting'));
+    $('#btn-pt-done').addEventListener('click', ptFinishVehicle);
+    $('#btn-pt-cancel').addEventListener('click', ptCancelVehicle);
+    $('#btn-toggle-input').addEventListener('click', ptToggleInputMode);
+    $('#btn-pt-undo').addEventListener('click', ptUndoLast);
+    $('#btn-pt-pause').addEventListener('click', togglePause);
+    $('#btn-pt-summary').addEventListener('click', showPTQuickSummary);
+    $('#btn-pt-end').addEventListener('click', endSession);
 
     // Results
     $('#btn-back-setup').addEventListener('click', () => showScreen('setup-screen'));
@@ -255,50 +294,55 @@ function updateTimerDisplay() {
     const now = new Date();
     const remaining = Math.max(0, end - now);
 
-    // Format interval label
     const startStr = formatTime(start);
     const endStr = formatTime(end);
-    $('#interval-label').textContent = `${startStr} - ${endStr}`;
-
-    // Format remaining time
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
-    $('#timer-remaining').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-    // Progress bar
     const totalDuration = end - start;
     const elapsed = totalDuration - remaining;
     const pct = Math.min(100, (elapsed / totalDuration) * 100);
-    $('#progress-fill').style.width = pct + '%';
 
-    // Check if interval is over
+    // Update the correct timer elements based on mode
+    const isPT = currentSession && currentSession.mode === 'pt';
+    const prefix = isPT ? 'pt-' : '';
+
+    $(`#${prefix}interval-label`).textContent = `${startStr} - ${endStr}`;
+    $(`#${prefix}timer-remaining`).textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    $(`#${prefix}progress-fill`).style.width = pct + '%';
+
     if (remaining <= 0) {
         onIntervalEnd();
     }
 }
 
 function onIntervalEnd() {
-    // Vibrate if supported
     if (navigator.vibrate) {
         navigator.vibrate([200, 100, 200, 100, 200]);
     }
 
-    // Auto-save and start new interval
     saveSession();
-    startNewInterval();
-    renderCountingScreen();
+
+    if (currentSession.mode === 'pt') {
+        startNewPTInterval();
+        renderPTCountingScreen();
+    } else {
+        startNewInterval();
+        renderCountingScreen();
+    }
 }
 
 function togglePause() {
     isPaused = !isPaused;
-    const btn = $('#btn-pause');
-    if (isPaused) {
-        btn.textContent = '\u25B6 Resume';
-        btn.classList.add('paused');
-    } else {
-        btn.textContent = '\u23F8 Pause';
-        btn.classList.remove('paused');
-    }
+    const btns = currentSession?.mode === 'pt' ? [$('#btn-pt-pause')] : [$('#btn-pause')];
+    btns.forEach(btn => {
+        if (isPaused) {
+            btn.textContent = '\u25B6 Resume';
+            btn.classList.add('paused');
+        } else {
+            btn.textContent = '\u23F8 Pause';
+            btn.classList.remove('paused');
+        }
+    });
 }
 
 function formatTime(date) {
@@ -567,8 +611,8 @@ function showHistory() {
         container.innerHTML = sessions.map(s => `
             <div class="history-item" data-id="${s.id}">
                 <div class="history-item-info">
-                    <h3>${s.siteName}</h3>
-                    <p>${s.date} | ${s.intervals.length} interval(s) | ${s.intervalMinutes} min</p>
+                    <h3>${s.mode === 'pt' ? s.stopName : s.siteName}</h3>
+                    <p>${s.mode === 'pt' ? 'PT Passengers' : 'Traffic'} | ${s.date} | ${s.intervals.length} interval(s)</p>
                 </div>
                 <div class="history-item-actions">
                     <button class="btn-delete-session" data-id="${s.id}" title="Delete">&times;</button>
@@ -605,12 +649,22 @@ function showResults(session) {
     currentSession = session;
 
     const info = $('#results-info');
-    info.innerHTML = `
-        <div class="site-title">${session.siteName}</div>
-        <p>Date: ${session.date}</p>
-        <p>Intervals: ${session.intervals.length} x ${session.intervalMinutes} min</p>
-        <p>Approaches: ${session.approaches.join(', ')}</p>
-    `;
+    if (session.mode === 'pt') {
+        info.innerHTML = `
+            <div class="site-title">${session.stopName}</div>
+            <p>Mode: PT Passenger Counting</p>
+            <p>Date: ${session.date}</p>
+            <p>Intervals: ${session.intervals.length} x ${session.intervalMinutes} min</p>
+            <p>Lines: ${session.lines.join(', ')}</p>
+        `;
+    } else {
+        info.innerHTML = `
+            <div class="site-title">${session.siteName}</div>
+            <p>Date: ${session.date}</p>
+            <p>Intervals: ${session.intervals.length} x ${session.intervalMinutes} min</p>
+            <p>Approaches: ${session.approaches.join(', ')}</p>
+        `;
+    }
 
     // Reset to summary tab
     $$('.results-tab').forEach(t => t.classList.remove('active'));
@@ -624,10 +678,18 @@ function renderResults(view) {
     const container = $('#results-content');
     const session = currentSession;
 
-    if (view === 'summary') {
-        renderSummaryTable(container, session);
+    if (session.mode === 'pt') {
+        if (view === 'summary') {
+            renderPTSummaryTable(container, session);
+        } else {
+            renderPTIntervalTables(container, session);
+        }
     } else {
-        renderIntervalTables(container, session);
+        if (view === 'summary') {
+            renderSummaryTable(container, session);
+        } else {
+            renderIntervalTables(container, session);
+        }
     }
 }
 
@@ -751,6 +813,11 @@ function renderIntervalTables(container, session) {
 
 // ===== CSV EXPORT & SHARE =====
 function buildCSV(session) {
+    if (session.mode === 'pt') return buildPTCSV(session);
+    return buildTrafficCSV(session);
+}
+
+function buildTrafficCSV(session) {
     const vtHeaders = session.vehicleTypes.map(vt => {
         const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
         return v ? v.label : vt;
@@ -791,7 +858,9 @@ function buildCSV(session) {
 }
 
 function getCSVFilename(session) {
-    return `traffic_count_${session.siteName.replace(/\s+/g, '_')}_${session.date}.csv`;
+    const name = session.mode === 'pt' ? session.stopName : session.siteName;
+    const prefix = session.mode === 'pt' ? 'pt_passengers' : 'traffic_count';
+    return `${prefix}_${name.replace(/\s+/g, '_')}_${session.date}.csv`;
 }
 
 function exportCSV() {
@@ -834,6 +903,434 @@ async function shareCSV() {
         alert('Sharing is not supported on this browser. The file will be downloaded instead — you can then send it manually.');
         exportCSV();
     }
+}
+
+// ===== PT PASSENGER COUNTING =====
+
+function initPTSetupForm() {
+    const today = new Date();
+    $('#pt-date').value = today.toISOString().split('T')[0];
+
+    const minutes = today.getMinutes();
+    const roundedMinutes = Math.ceil(minutes / 15) * 15;
+    const h = today.getHours() + (roundedMinutes >= 60 ? 1 : 0);
+    const m = roundedMinutes % 60;
+    $('#pt-start-time').value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+    ptLines = [];
+}
+
+function addPTLine() {
+    const input = $('#pt-line-input');
+    const val = input.value.trim();
+    if (!val) return;
+
+    // Support comma-separated entries
+    const newLines = val.split(',').map(l => l.trim()).filter(l => l && !ptLines.includes(l));
+    ptLines.push(...newLines);
+    input.value = '';
+    renderPTLines();
+    input.focus();
+}
+
+function removePTLine(line) {
+    ptLines = ptLines.filter(l => l !== line);
+    renderPTLines();
+}
+
+function renderPTLines() {
+    const container = $('#pt-lines-list');
+    container.innerHTML = ptLines.map(line =>
+        `<div class="pt-line-chip">${line}<button type="button" onclick="removePTLine('${line.replace(/'/g, "\\'")}')">&times;</button></div>`
+    ).join('');
+}
+
+function startPTSession() {
+    if (ptLines.length === 0) {
+        alert('Please add at least one line.');
+        return;
+    }
+
+    const stopName = $('#pt-stop-name').value.trim() || 'Unnamed Stop';
+    const date = $('#pt-date').value;
+    const startTime = $('#pt-start-time').value;
+    const intervalMinutes = parseInt($('#pt-interval').value);
+
+    currentSession = {
+        id: Date.now().toString(36),
+        mode: 'pt',
+        stopName,
+        date,
+        startTime,
+        intervalMinutes,
+        lines: [...ptLines],
+        intervals: [],
+        createdAt: new Date().toISOString()
+    };
+
+    undoStack = [];
+    isPaused = false;
+    ptCurrentVehicle = null;
+    ptUseNumberInput = false;
+
+    startNewPTInterval();
+    renderPTCountingScreen();
+    showScreen('pt-count-screen');
+    requestWakeLock();
+}
+
+function startNewPTInterval() {
+    let intervalStart;
+
+    if (currentSession.intervals.length === 0) {
+        intervalStart = new Date(currentSession.date + 'T' + currentSession.startTime);
+    } else {
+        const prev = currentSession.intervals[currentSession.intervals.length - 1];
+        intervalStart = new Date(prev.endTime);
+    }
+
+    const intervalEnd = new Date(intervalStart.getTime() + currentSession.intervalMinutes * 60000);
+
+    currentSession.intervals.push({
+        startTime: intervalStart.toISOString(),
+        endTime: intervalEnd.toISOString(),
+        vehicles: []
+    });
+
+    startTimer();
+}
+
+function renderPTCountingScreen() {
+    // Stop label
+    $('#pt-stop-label').textContent = currentSession.stopName;
+
+    // Line selector buttons
+    const container = $('#pt-line-buttons');
+    container.innerHTML = '';
+    currentSession.lines.forEach(line => {
+        const btn = document.createElement('button');
+        btn.className = 'pt-line-btn';
+        btn.textContent = line;
+        btn.addEventListener('click', () => ptSelectLine(line));
+        container.appendChild(btn);
+    });
+
+    // Show/hide based on current vehicle state
+    if (ptCurrentVehicle) {
+        $('#pt-line-selector').style.display = 'none';
+        $('#pt-counter').style.display = '';
+        $('#pt-current-line-label').textContent = ptCurrentVehicle.line;
+        $('#boarding-count').textContent = ptCurrentVehicle.boarding;
+        $('#alighting-count').textContent = ptCurrentVehicle.alighting;
+
+        // Sync number inputs
+        $('#pt-boarding-num').value = ptCurrentVehicle.boarding;
+        $('#pt-alighting-num').value = ptCurrentVehicle.alighting;
+
+        // Show/hide input modes
+        const tapMode = ptUseNumberInput ? 'none' : '';
+        const numMode = ptUseNumberInput ? '' : 'none';
+        $('.pt-count-buttons').style.display = tapMode ? 'none' : 'grid';
+        $('#pt-number-input').style.display = numMode ? 'none' : 'grid';
+        $('#btn-toggle-input').textContent = ptUseNumberInput ? 'Switch to tap counting' : 'Switch to number entry';
+    } else {
+        $('#pt-line-selector').style.display = '';
+        $('#pt-counter').style.display = 'none';
+    }
+
+    // Render vehicle log
+    renderPTVehicleLog();
+}
+
+function ptSelectLine(line) {
+    ptCurrentVehicle = { line, boarding: 0, alighting: 0 };
+    ptUseNumberInput = false;
+    renderPTCountingScreen();
+}
+
+function ptCount(type) {
+    if (!ptCurrentVehicle || isPaused) return;
+    ptCurrentVehicle[type]++;
+    if (navigator.vibrate) navigator.vibrate(30);
+    $('#boarding-count').textContent = ptCurrentVehicle.boarding;
+    $('#alighting-count').textContent = ptCurrentVehicle.alighting;
+}
+
+function ptToggleInputMode() {
+    ptUseNumberInput = !ptUseNumberInput;
+
+    if (ptUseNumberInput) {
+        // Sync tap counts to number inputs
+        $('#pt-boarding-num').value = ptCurrentVehicle.boarding;
+        $('#pt-alighting-num').value = ptCurrentVehicle.alighting;
+        $('.pt-count-buttons').style.display = 'none';
+        $('#pt-number-input').style.display = 'grid';
+    } else {
+        // Sync number inputs back to tap counts
+        ptCurrentVehicle.boarding = parseInt($('#pt-boarding-num').value) || 0;
+        ptCurrentVehicle.alighting = parseInt($('#pt-alighting-num').value) || 0;
+        $('.pt-count-buttons').style.display = 'grid';
+        $('#pt-number-input').style.display = 'none';
+        $('#boarding-count').textContent = ptCurrentVehicle.boarding;
+        $('#alighting-count').textContent = ptCurrentVehicle.alighting;
+    }
+
+    $('#btn-toggle-input').textContent = ptUseNumberInput ? 'Switch to tap counting' : 'Switch to number entry';
+}
+
+function ptFinishVehicle() {
+    if (!ptCurrentVehicle) return;
+
+    // If in number input mode, read the values
+    if (ptUseNumberInput) {
+        ptCurrentVehicle.boarding = parseInt($('#pt-boarding-num').value) || 0;
+        ptCurrentVehicle.alighting = parseInt($('#pt-alighting-num').value) || 0;
+    }
+
+    const interval = getCurrentInterval();
+    if (!interval) return;
+
+    const entry = {
+        time: new Date().toISOString(),
+        line: ptCurrentVehicle.line,
+        boarding: ptCurrentVehicle.boarding,
+        alighting: ptCurrentVehicle.alighting
+    };
+
+    interval.vehicles.push(entry);
+    undoStack.push({ type: 'pt-vehicle', intervalIndex: currentSession.intervals.length - 1 });
+
+    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+
+    ptCurrentVehicle = null;
+    ptUseNumberInput = false;
+    renderPTCountingScreen();
+}
+
+function ptCancelVehicle() {
+    ptCurrentVehicle = null;
+    ptUseNumberInput = false;
+    renderPTCountingScreen();
+}
+
+function ptUndoLast() {
+    if (undoStack.length === 0) return;
+    const last = undoStack.pop();
+
+    if (last.type === 'pt-vehicle') {
+        const interval = currentSession.intervals[last.intervalIndex];
+        if (interval && interval.vehicles.length > 0) {
+            interval.vehicles.pop();
+        }
+    }
+
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+    renderPTCountingScreen();
+}
+
+function ptDeleteVehicle(intervalIndex, vehicleIndex) {
+    currentSession.intervals[intervalIndex].vehicles.splice(vehicleIndex, 1);
+    renderPTCountingScreen();
+}
+
+function renderPTVehicleLog() {
+    const container = $('#pt-log-entries');
+    const interval = getCurrentInterval();
+    if (!interval || !interval.vehicles) {
+        container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;padding:16px;">No vehicles counted yet</p>';
+        return;
+    }
+
+    const intervalIdx = currentSession.intervals.length - 1;
+
+    container.innerHTML = interval.vehicles.map((v, i) => {
+        const time = formatTime(new Date(v.time));
+        return `<div class="pt-log-entry">
+            <span class="log-line">${v.line}</span>
+            <span class="log-time">${time}</span>
+            <span class="log-counts">
+                <span class="log-board">+${v.boarding}</span>
+                <span class="log-alight">-${v.alighting}</span>
+            </span>
+            <button class="log-delete" onclick="ptDeleteVehicle(${intervalIdx},${i})">&times;</button>
+        </div>`;
+    }).reverse().join('');
+}
+
+// PT Quick Summary
+function showPTQuickSummary() {
+    const body = $('#summary-body');
+    const interval = getCurrentInterval();
+
+    let totalBoarding = 0;
+    let totalAlighting = 0;
+    let vehicleCount = 0;
+    const lineTotals = {};
+
+    if (interval && interval.vehicles) {
+        interval.vehicles.forEach(v => {
+            totalBoarding += v.boarding;
+            totalAlighting += v.alighting;
+            vehicleCount++;
+            if (!lineTotals[v.line]) lineTotals[v.line] = { vehicles: 0, boarding: 0, alighting: 0 };
+            lineTotals[v.line].vehicles++;
+            lineTotals[v.line].boarding += v.boarding;
+            lineTotals[v.line].alighting += v.alighting;
+        });
+    }
+
+    let html = `<div class="summary-grid">
+        <div class="summary-card"><div class="label">Vehicles</div><div class="value">${vehicleCount}</div></div>
+        <div class="summary-card"><div class="label">Intervals</div><div class="value">${currentSession.intervals.length}</div></div>
+        <div class="summary-card"><div class="label">Boarding</div><div class="value" style="color:#188038">${totalBoarding}</div></div>
+        <div class="summary-card"><div class="label">Alighting</div><div class="value" style="color:#d93025">${totalAlighting}</div></div>
+    </div>`;
+
+    // Session totals
+    let sessionBoarding = 0, sessionAlighting = 0, sessionVehicles = 0;
+    currentSession.intervals.forEach(intv => {
+        if (intv.vehicles) {
+            intv.vehicles.forEach(v => {
+                sessionBoarding += v.boarding;
+                sessionAlighting += v.alighting;
+                sessionVehicles++;
+            });
+        }
+    });
+
+    html += `<p style="margin-top:16px;text-align:center;font-size:0.9rem;color:var(--text-secondary)">
+        Session: <strong>${sessionVehicles}</strong> vehicles,
+        <strong style="color:#188038">+${sessionBoarding}</strong> boarding,
+        <strong style="color:#d93025">-${sessionAlighting}</strong> alighting
+    </p>`;
+
+    body.innerHTML = html;
+    $('#summary-modal').classList.add('active');
+}
+
+// PT Results Tables
+function renderPTSummaryTable(container, session) {
+    const lineTotals = {};
+    session.lines.forEach(l => lineTotals[l] = { vehicles: 0, boarding: 0, alighting: 0 });
+
+    session.intervals.forEach(interval => {
+        if (interval.vehicles) {
+            interval.vehicles.forEach(v => {
+                if (!lineTotals[v.line]) lineTotals[v.line] = { vehicles: 0, boarding: 0, alighting: 0 };
+                lineTotals[v.line].vehicles++;
+                lineTotals[v.line].boarding += v.boarding;
+                lineTotals[v.line].alighting += v.alighting;
+            });
+        }
+    });
+
+    let grandVehicles = 0, grandBoarding = 0, grandAlighting = 0;
+
+    let html = `<table class="results-table"><thead><tr>
+        <th>Line</th><th>Vehicles</th><th>Boarding</th><th>Alighting</th><th>Net</th>
+    </tr></thead><tbody>`;
+
+    for (const line of Object.keys(lineTotals)) {
+        const t = lineTotals[line];
+        const net = t.boarding - t.alighting;
+        grandVehicles += t.vehicles;
+        grandBoarding += t.boarding;
+        grandAlighting += t.alighting;
+
+        html += `<tr>
+            <td><strong>${line}</strong></td>
+            <td>${t.vehicles}</td>
+            <td style="color:#188038">${t.boarding}</td>
+            <td style="color:#d93025">${t.alighting}</td>
+            <td>${net >= 0 ? '+' : ''}${net}</td>
+        </tr>`;
+    }
+
+    const grandNet = grandBoarding - grandAlighting;
+    html += `<tr class="total-row">
+        <td>TOTAL</td>
+        <td>${grandVehicles}</td>
+        <td>${grandBoarding}</td>
+        <td>${grandAlighting}</td>
+        <td>${grandNet >= 0 ? '+' : ''}${grandNet}</td>
+    </tr>`;
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+function renderPTIntervalTables(container, session) {
+    let html = '';
+
+    session.intervals.forEach((interval, idx) => {
+        const start = formatTime(new Date(interval.startTime));
+        const end = formatTime(new Date(interval.endTime));
+
+        html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;">Interval ${idx + 1}: ${start} - ${end}</h3>`;
+
+        if (!interval.vehicles || interval.vehicles.length === 0) {
+            html += `<p style="color:var(--text-secondary);font-size:0.85rem;">No vehicles counted</p>`;
+            return;
+        }
+
+        html += `<table class="results-table"><thead><tr>
+            <th>Time</th><th>Line</th><th>Boarding</th><th>Alighting</th>
+        </tr></thead><tbody>`;
+
+        let intBoarding = 0, intAlighting = 0;
+
+        interval.vehicles.forEach(v => {
+            const time = formatTime(new Date(v.time));
+            intBoarding += v.boarding;
+            intAlighting += v.alighting;
+
+            html += `<tr>
+                <td>${time}</td>
+                <td><strong>${v.line}</strong></td>
+                <td style="color:#188038">${v.boarding}</td>
+                <td style="color:#d93025">${v.alighting}</td>
+            </tr>`;
+        });
+
+        html += `<tr class="total-row">
+            <td colspan="2">Subtotal</td>
+            <td>${intBoarding}</td>
+            <td>${intAlighting}</td>
+        </tr>`;
+
+        html += `</tbody></table>`;
+    });
+
+    container.innerHTML = html;
+}
+
+// PT CSV Export
+function buildPTCSV(session) {
+    const headers = ['Stop', 'Date', 'Interval Start', 'Interval End', 'Time', 'Line', 'Boarding', 'Alighting'];
+    const rows = [headers.join(',')];
+
+    session.intervals.forEach(interval => {
+        const intStart = formatTime(new Date(interval.startTime));
+        const intEnd = formatTime(new Date(interval.endTime));
+
+        if (interval.vehicles) {
+            interval.vehicles.forEach(v => {
+                const time = formatTime(new Date(v.time));
+                rows.push([
+                    `"${session.stopName}"`,
+                    session.date,
+                    intStart,
+                    intEnd,
+                    time,
+                    `"${v.line}"`,
+                    v.boarding,
+                    v.alighting
+                ].join(','));
+            });
+        }
+    });
+
+    return rows.join('\n');
 }
 
 // ===== WAKE LOCK =====

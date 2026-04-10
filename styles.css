@@ -645,6 +645,321 @@ body {
     color: var(--primary);
 }
 
+/* ===== MODE SELECTOR ===== */
+.mode-selector {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+}
+
+.mode-tab {
+    flex: 1;
+    padding: 14px 8px;
+    border: none;
+    background: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+}
+
+.mode-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* ===== PT SETUP ===== */
+.pt-lines-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.pt-line-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--primary);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.pt-line-chip button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0.7;
+}
+
+.pt-line-chip button:hover { opacity: 1; }
+
+.pt-line-add {
+    display: flex;
+    gap: 8px;
+}
+
+.pt-line-add input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1rem;
+}
+
+.pt-line-add input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.pt-line-add .btn-primary {
+    padding: 10px 20px;
+}
+
+/* ===== PT COUNTING SCREEN ===== */
+.pt-stop-label {
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.pt-line-selector {
+    padding: 16px;
+}
+
+.pt-prompt {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.pt-line-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.pt-line-btn {
+    padding: 20px 12px;
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    transition: all 0.15s;
+}
+
+.pt-line-btn:active {
+    background: var(--primary);
+    color: white;
+    transform: scale(0.95);
+}
+
+/* PT Counter */
+.pt-counter {
+    padding: 16px;
+    padding-bottom: 8px;
+}
+
+.pt-current-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.pt-current-line span {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-small:active { background: #f1f3f4; }
+
+.pt-count-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.pt-big-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    min-height: 120px;
+    touch-action: manipulation;
+    transition: transform 0.1s;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.pt-big-btn:active {
+    transform: scale(0.95);
+}
+
+.pt-big-btn.boarding {
+    background: #188038;
+    color: white;
+}
+
+.pt-big-btn.alighting {
+    background: #d93025;
+    color: white;
+}
+
+.pt-btn-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.pt-btn-count {
+    font-size: 2.5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.pt-input-toggle {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.pt-number-input {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.pt-num-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pt-num-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.pt-num-field input {
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+    width: 100%;
+}
+
+.pt-num-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* PT Vehicle Log */
+.pt-vehicle-log {
+    padding: 8px 16px;
+    padding-bottom: 80px;
+}
+
+.pt-log-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.pt-log-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+}
+
+.pt-log-entry .log-line {
+    font-weight: 700;
+    color: var(--primary);
+    min-width: 60px;
+}
+
+.pt-log-entry .log-time {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.pt-log-entry .log-counts {
+    display: flex;
+    gap: 12px;
+}
+
+.pt-log-entry .log-board {
+    color: #188038;
+    font-weight: 600;
+}
+
+.pt-log-entry .log-alight {
+    color: #d93025;
+    font-weight: 600;
+}
+
+.pt-log-entry .log-delete {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px;
+}
+
 /* ===== FOOTER ===== */
 .app-footer {
     text-align: center;

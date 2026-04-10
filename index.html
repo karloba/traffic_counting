@@ -16,6 +16,12 @@
             <button id="btn-history" class="btn-icon" title="Session History">&#128203;</button>
         </header>
 
+        <div class="mode-selector">
+            <button class="mode-tab active" data-mode="traffic">Traffic Counting</button>
+            <button class="mode-tab" data-mode="pt">PT Passengers</button>
+        </div>
+
+        <!-- Traffic Counting Setup -->
         <form id="setup-form" class="setup-form">
             <div class="form-group">
                 <label for="site-name">Site Name</label>
@@ -74,6 +80,47 @@
 
             <button type="submit" class="btn-primary btn-large">Start Counting</button>
         </form>
+
+        <!-- PT Passenger Setup -->
+        <form id="pt-setup-form" class="setup-form" style="display:none">
+            <div class="form-group">
+                <label for="pt-stop-name">Stop Name</label>
+                <input type="text" id="pt-stop-name" placeholder="e.g. Glavni kolodvor" required>
+            </div>
+
+            <div class="form-group">
+                <label for="pt-date">Date</label>
+                <input type="date" id="pt-date">
+            </div>
+
+            <div class="form-group">
+                <label for="pt-start-time">Start Time</label>
+                <input type="time" id="pt-start-time">
+            </div>
+
+            <div class="form-group">
+                <label for="pt-interval">Time Interval (minutes)</label>
+                <select id="pt-interval">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15" selected>15</option>
+                    <option value="30">30</option>
+                    <option value="60">60</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Lines at this stop</label>
+                <div id="pt-lines-list" class="pt-lines-list"></div>
+                <div class="pt-line-add">
+                    <input type="text" id="pt-line-input" placeholder="e.g. Tram 6, Bus 268">
+                    <button type="button" id="btn-add-line" class="btn-primary">Add</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary btn-large">Start Counting</button>
+        </form>
+
         <footer class="app-footer">Made by: Karlo Babojeli&#263;, University of Zagreb Faculty of Transport and Traffic Sciences</footer>
     </div>
 
@@ -96,6 +143,70 @@
             <button id="btn-pause" class="btn-footer" title="Pause">&#9646;&#9646; Pause</button>
             <button id="btn-summary" class="btn-footer" title="Quick summary">&#931; Summary</button>
             <button id="btn-end" class="btn-footer btn-danger" title="End session">&#9632; End</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: PT Counting -->
+    <div id="pt-count-screen" class="screen">
+        <div class="count-header">
+            <div class="timer-bar">
+                <span id="pt-interval-label">14:00 - 14:15</span>
+                <span id="pt-timer-remaining">15:00</span>
+            </div>
+            <div class="progress-bar"><div id="pt-progress-fill"></div></div>
+        </div>
+
+        <div id="pt-stop-label" class="pt-stop-label"></div>
+
+        <!-- Line selector (shown when no vehicle is being counted) -->
+        <div id="pt-line-selector" class="pt-line-selector">
+            <p class="pt-prompt">Select arriving line:</p>
+            <div id="pt-line-buttons" class="pt-line-buttons"></div>
+        </div>
+
+        <!-- Boarding/Alighting counter (shown after line selected) -->
+        <div id="pt-counter" class="pt-counter" style="display:none">
+            <div class="pt-current-line">
+                <span id="pt-current-line-label"></span>
+                <button id="btn-pt-cancel" class="btn-small">&times;</button>
+            </div>
+            <div class="pt-count-buttons">
+                <button id="btn-boarding" class="pt-big-btn boarding">
+                    <span class="pt-btn-label">BOARDING</span>
+                    <span id="boarding-count" class="pt-btn-count">0</span>
+                </button>
+                <button id="btn-alighting" class="pt-big-btn alighting">
+                    <span class="pt-btn-label">ALIGHTING</span>
+                    <span id="alighting-count" class="pt-btn-count">0</span>
+                </button>
+            </div>
+            <div class="pt-input-toggle">
+                <button id="btn-toggle-input" class="btn-small">Switch to number entry</button>
+            </div>
+            <div id="pt-number-input" class="pt-number-input" style="display:none">
+                <div class="pt-num-field">
+                    <label>Boarding</label>
+                    <input type="number" id="pt-boarding-num" min="0" value="0" inputmode="numeric">
+                </div>
+                <div class="pt-num-field">
+                    <label>Alighting</label>
+                    <input type="number" id="pt-alighting-num" min="0" value="0" inputmode="numeric">
+                </div>
+            </div>
+            <button id="btn-pt-done" class="btn-primary btn-large">Done</button>
+        </div>
+
+        <!-- Vehicle log -->
+        <div id="pt-vehicle-log" class="pt-vehicle-log">
+            <h3 class="pt-log-title">Vehicle Log</h3>
+            <div id="pt-log-entries"></div>
+        </div>
+
+        <div class="count-footer">
+            <button id="btn-pt-undo" class="btn-footer" title="Undo last">&#8630; Undo</button>
+            <button id="btn-pt-pause" class="btn-footer" title="Pause">&#9646;&#9646; Pause</button>
+            <button id="btn-pt-summary" class="btn-footer" title="Quick summary">&#931; Summary</button>
+            <button id="btn-pt-end" class="btn-footer btn-danger" title="End session">&#9632; End</button>
         </div>
     </div>
 
