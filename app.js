@@ -1220,13 +1220,9 @@ async function shareData() {
     const title = `Traffic Count - ${name}`;
     const text = `Traffic count data: ${name}, ${session.date}, ${session.intervals.length} intervals`;
 
-    // Build both files
-    const csv = buildCSV(session);
-    const csvFile = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
+    // Try Excel first (has all sheets), fall back to CSV
+    let file;
 
-    const files = [csvFile];
-
-    // Try to include Excel file too
     if (typeof XLSX !== 'undefined') {
         try {
             const wb = XLSX.utils.book_new();
@@ -1237,17 +1233,20 @@ async function shareData() {
             }
             const xlsxName = `${name.replace(/\s+/g, '_')}_${session.date}.xlsx`;
             const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            const xlsxFile = new File([xlsxData], xlsxName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            files.push(xlsxFile);
+            file = new File([xlsxData], xlsxName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         } catch (e) {
-            // Excel generation failed — share CSV only
+            // Excel failed, fall through to CSV
         }
     }
 
-    // Use Web Share API if available
-    if (navigator.canShare && navigator.canShare({ files })) {
+    if (!file) {
+        const csv = buildCSV(session);
+        file = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
+    }
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-            await navigator.share({ title, text, files });
+            await navigator.share({ title, text, files: [file] });
         } catch (e) {
             if (e.name !== 'AbortError') {
                 alert('Sharing failed. Try the download buttons instead.');
