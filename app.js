@@ -1412,37 +1412,48 @@ function renderAnalysis(container, session) {
         html += `</div></div>`;
     }
 
-    // Vehicle type split
+    // Vehicle type split PER APPROACH
     if (split.grandTotal > 0) {
-        // Calculate totals per vehicle type across all approaches and movements
-        const vtTotals = {};
-        session.vehicleTypes.forEach(vt => vtTotals[vt] = 0);
+        // Calculate totals per vehicle type per approach
+        const vtByApproach = {};
+        session.approaches.forEach(approach => {
+            vtByApproach[approach] = {};
+            session.vehicleTypes.forEach(vt => vtByApproach[approach][vt] = 0);
+        });
         session.intervals.forEach(interval => {
             for (const approach of Object.keys(interval.counts)) {
                 for (const movement of Object.keys(interval.counts[approach])) {
                     for (const vt of Object.keys(interval.counts[approach][movement])) {
-                        vtTotals[vt] = (vtTotals[vt] || 0) + interval.counts[approach][movement][vt];
+                        vtByApproach[approach][vt] = (vtByApproach[approach][vt] || 0) + interval.counts[approach][movement][vt];
                     }
                 }
             }
         });
 
-        html += `<div class="analysis-card">
-            <div class="analysis-title">Vehicle Type Split</div>
-            <div class="split-grid">`;
+        session.approaches.forEach(approach => {
+            const approachTotal = split.approachTotals[approach];
+            if (approachTotal === 0) return;
 
-        session.vehicleTypes.forEach(vtId => {
-            const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
-            const total = vtTotals[vtId] || 0;
-            if (total === 0) return;
-            const pct = ((total / split.grandTotal) * 100).toFixed(1);
-            html += `<div class="split-card">
-                <div class="split-label">${vt ? vt.label : vtId}</div>
-                <div class="split-value">${total} <span class="split-pct">(${pct}%)</span></div>
-            </div>`;
+            // Only show vehicle types with counts > 0 for this approach
+            const activeTypes = session.vehicleTypes.filter(vt => vtByApproach[approach][vt] > 0);
+            if (activeTypes.length === 0) return;
+
+            html += `<div class="analysis-card">
+                <div class="analysis-title">${approach} — Vehicle Type Split (${approachTotal} total)</div>
+                <div class="split-grid">`;
+
+            activeTypes.forEach(vtId => {
+                const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
+                const total = vtByApproach[approach][vtId];
+                const pct = ((total / approachTotal) * 100).toFixed(1);
+                html += `<div class="split-card">
+                    <div class="split-label">${vt ? vt.label : vtId}</div>
+                    <div class="split-value">${total} <span class="split-pct">(${pct}%)</span></div>
+                </div>`;
+            });
+
+            html += `</div></div>`;
         });
-
-        html += `</div></div>`;
     }
 
     container.innerHTML = html;
@@ -1455,11 +1466,11 @@ function renderTurningDiagram(container, session) {
     const approaches = session.approaches;
     const n = approaches.length;
 
-    const W = 400, H = 400;
+    const W = 520, H = 520;
     const cx = W / 2, cy = H / 2;
-    const boxSize = 50;
-    const roadLen = 130;
-    const roadWidth = 44;
+    const boxSize = 70;
+    const roadLen = 170;
+    const roadWidth = 56;
 
     // Find max volume for scaling stroke width
     let maxVol = 1;
@@ -1497,94 +1508,84 @@ function renderTurningDiagram(container, session) {
     svg += `<rect x="${cx - boxSize / 2}" y="${cy - boxSize / 2}" width="${boxSize}" height="${boxSize}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2" rx="4"/>`;
 
     // Edge positions for each approach (where arrows start/end)
-    const edge = boxSize / 2 + 12;
-    const off = 10; // lane offset from center
+    const edge = boxSize / 2 + 16;
+    const off = 16; // lane offset from center
 
     // For each approach: define start point and arrow paths for L/S/R
     // Approaches: 0=Top(comes from north), 1=Right(east), 2=Bottom(south), 3=Left(west)
+    const reach = 90; // how far arrows extend beyond intersection edge
+    const curveR = 30; // curve radius for turns
+
     const arrowDefs = [
         { // 0: Top - enters from top going down
-            label: { x: cx, y: cy - boxSize / 2 - roadLen + 14, anchor: 'middle' },
+            label: { x: cx, y: cy - boxSize / 2 - roadLen + 16, anchor: 'middle' },
             left: {
-                // Curve right-to-left: start above, curve to exit left
-                start: { x: cx - off, y: cy - edge - 60 },
-                path: (sw) => `M ${cx - off} ${cy - edge - 60} L ${cx - off} ${cy - 10} Q ${cx - off} ${cy + 10}, ${cx - edge - 60} ${cy - off}`,
-                labelPos: { x: cx - edge - 30, y: cy - off - 8 },
+                path: () => `M ${cx - off} ${cy - edge - reach} L ${cx - off} ${cy - curveR} Q ${cx - off} ${cy}, ${cx - off - curveR} ${cy} L ${cx - edge - reach} ${cy - off}`,
+                labelPos: { x: cx - edge - reach + 10, y: cy - off - 10 },
                 color: '#4285f4'
             },
             straight: {
-                start: { x: cx + off / 2, y: cy - edge - 60 },
-                path: () => `M ${cx + off / 2} ${cy - edge - 60} L ${cx + off / 2} ${cy + edge + 60}`,
-                labelPos: { x: cx + off / 2 + 12, y: cy + edge + 40 },
+                path: () => `M ${cx} ${cy - edge - reach} L ${cx} ${cy + edge + reach}`,
+                labelPos: { x: cx + 14, y: cy + edge + reach - 10 },
                 color: '#34a853'
             },
             right: {
-                start: { x: cx + off, y: cy - edge - 60 },
-                path: () => `M ${cx + off} ${cy - edge - 60} L ${cx + off} ${cy - 10} Q ${cx + off} ${cy + 10}, ${cx + edge + 60} ${cy + off}`,
-                labelPos: { x: cx + edge + 30, y: cy + off - 8 },
+                path: () => `M ${cx + off} ${cy - edge - reach} L ${cx + off} ${cy - curveR} Q ${cx + off} ${cy}, ${cx + off + curveR} ${cy} L ${cx + edge + reach} ${cy + off}`,
+                labelPos: { x: cx + edge + reach - 10, y: cy + off + 14 },
                 color: '#ea4335'
             }
         },
         { // 1: Right - enters from right going left
-            label: { x: cx + boxSize / 2 + roadLen - 10, y: cy + 5, anchor: 'end' },
+            label: { x: cx + boxSize / 2 + roadLen - 12, y: cy + 5, anchor: 'end' },
             left: {
-                start: { x: cx + edge + 60, y: cy - off },
-                path: () => `M ${cx + edge + 60} ${cy - off} L ${cx + 10} ${cy - off} Q ${cx - 10} ${cy - off}, ${cx + off} ${cy - edge - 60}`,
-                labelPos: { x: cx + off + 10, y: cy - edge - 35 },
+                path: () => `M ${cx + edge + reach} ${cy - off} L ${cx + curveR} ${cy - off} Q ${cx} ${cy - off}, ${cx} ${cy - off - curveR} L ${cx + off} ${cy - edge - reach}`,
+                labelPos: { x: cx + off + 14, y: cy - edge - reach + 14 },
                 color: '#4285f4'
             },
             straight: {
-                start: { x: cx + edge + 60, y: cy + off / 2 },
-                path: () => `M ${cx + edge + 60} ${cy + off / 2} L ${cx - edge - 60} ${cy + off / 2}`,
-                labelPos: { x: cx - edge - 40, y: cy + off / 2 - 8 },
+                path: () => `M ${cx + edge + reach} ${cy} L ${cx - edge - reach} ${cy}`,
+                labelPos: { x: cx - edge - reach + 10, y: cy - 10 },
                 color: '#34a853'
             },
             right: {
-                start: { x: cx + edge + 60, y: cy + off },
-                path: () => `M ${cx + edge + 60} ${cy + off} L ${cx + 10} ${cy + off} Q ${cx - 10} ${cy + off}, ${cx - off} ${cy + edge + 60}`,
-                labelPos: { x: cx - off - 10, y: cy + edge + 40 },
+                path: () => `M ${cx + edge + reach} ${cy + off} L ${cx + curveR} ${cy + off} Q ${cx} ${cy + off}, ${cx} ${cy + off + curveR} L ${cx - off} ${cy + edge + reach}`,
+                labelPos: { x: cx - off - 14, y: cy + edge + reach - 6 },
                 color: '#ea4335'
             }
         },
         { // 2: Bottom - enters from bottom going up
             label: { x: cx, y: cy + boxSize / 2 + roadLen - 6, anchor: 'middle' },
             left: {
-                start: { x: cx + off, y: cy + edge + 60 },
-                path: () => `M ${cx + off} ${cy + edge + 60} L ${cx + off} ${cy + 10} Q ${cx + off} ${cy - 10}, ${cx + edge + 60} ${cy + off}`,
-                labelPos: { x: cx + edge + 30, y: cy + off + 14 },
+                path: () => `M ${cx + off} ${cy + edge + reach} L ${cx + off} ${cy + curveR} Q ${cx + off} ${cy}, ${cx + off + curveR} ${cy} L ${cx + edge + reach} ${cy + off}`,
+                labelPos: { x: cx + edge + reach - 10, y: cy + off + 14 },
                 color: '#4285f4'
             },
             straight: {
-                start: { x: cx - off / 2, y: cy + edge + 60 },
-                path: () => `M ${cx - off / 2} ${cy + edge + 60} L ${cx - off / 2} ${cy - edge - 60}`,
-                labelPos: { x: cx - off / 2 - 12, y: cy - edge - 40 },
+                path: () => `M ${cx} ${cy + edge + reach} L ${cx} ${cy - edge - reach}`,
+                labelPos: { x: cx - 14, y: cy - edge - reach + 14 },
                 color: '#34a853'
             },
             right: {
-                start: { x: cx - off, y: cy + edge + 60 },
-                path: () => `M ${cx - off} ${cy + edge + 60} L ${cx - off} ${cy + 10} Q ${cx - off} ${cy - 10}, ${cx - edge - 60} ${cy - off}`,
-                labelPos: { x: cx - edge - 30, y: cy - off + 14 },
+                path: () => `M ${cx - off} ${cy + edge + reach} L ${cx - off} ${cy + curveR} Q ${cx - off} ${cy}, ${cx - off - curveR} ${cy} L ${cx - edge - reach} ${cy - off}`,
+                labelPos: { x: cx - edge - reach + 10, y: cy - off - 10 },
                 color: '#ea4335'
             }
         },
         { // 3: Left - enters from left going right
-            label: { x: cx - boxSize / 2 - roadLen + 10, y: cy + 5, anchor: 'start' },
+            label: { x: cx - boxSize / 2 - roadLen + 12, y: cy + 5, anchor: 'start' },
             left: {
-                start: { x: cx - edge - 60, y: cy + off },
-                path: () => `M ${cx - edge - 60} ${cy + off} L ${cx - 10} ${cy + off} Q ${cx + 10} ${cy + off}, ${cx - off} ${cy + edge + 60}`,
-                labelPos: { x: cx - off - 10, y: cy + edge + 40 },
+                path: () => `M ${cx - edge - reach} ${cy + off} L ${cx - curveR} ${cy + off} Q ${cx} ${cy + off}, ${cx} ${cy + off + curveR} L ${cx - off} ${cy + edge + reach}`,
+                labelPos: { x: cx - off - 14, y: cy + edge + reach - 6 },
                 color: '#4285f4'
             },
             straight: {
-                start: { x: cx - edge - 60, y: cy - off / 2 },
-                path: () => `M ${cx - edge - 60} ${cy - off / 2} L ${cx + edge + 60} ${cy - off / 2}`,
-                labelPos: { x: cx + edge + 40, y: cy - off / 2 - 8 },
+                path: () => `M ${cx - edge - reach} ${cy} L ${cx + edge + reach} ${cy}`,
+                labelPos: { x: cx + edge + reach - 10, y: cy - 10 },
                 color: '#34a853'
             },
             right: {
-                start: { x: cx - edge - 60, y: cy - off },
-                path: () => `M ${cx - edge - 60} ${cy - off} L ${cx - 10} ${cy - off} Q ${cx + 10} ${cy - off}, ${cx + off} ${cy - edge - 60}`,
-                labelPos: { x: cx + off + 10, y: cy - edge - 35 },
+                path: () => `M ${cx - edge - reach} ${cy - off} L ${cx - curveR} ${cy - off} Q ${cx} ${cy - off}, ${cx} ${cy - off - curveR} L ${cx + off} ${cy - edge - reach}`,
+                labelPos: { x: cx + off + 14, y: cy - edge - reach + 14 },
                 color: '#ea4335'
             }
         }
