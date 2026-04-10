@@ -645,6 +645,14 @@ body {
     color: var(--primary);
 }
 
+/* ===== FOOTER ===== */
+.app-footer {
+    text-align: center;
+    padding: 24px 16px 16px;
+    font-size: 0.75rem;
+    color: #4a4a4a;
+}
+
 /* ===== UTILITIES ===== */
 .flash {
     animation: flash 0.15s ease-out;

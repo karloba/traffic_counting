@@ -4,6 +4,7 @@ const DEFAULT_VEHICLE_TYPES = [
     { id: 'lgv', label: 'LGV' },
     { id: 'hgv', label: 'HGV' },
     { id: 'bus', label: 'Bus' },
+    { id: 'tram', label: 'Tram' },
     { id: 'motorcycle', label: 'M/cycle' },
     { id: 'bicycle', label: 'Bicycle' },
     { id: 'pedestrian', label: 'Pedestr.' },
