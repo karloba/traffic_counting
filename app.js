@@ -43,6 +43,10 @@ let isPaused = false;
 let undoStack = [];
 let wakeLock = null;
 
+// Merge state
+let mergeMode = false;
+let mergeSelected = new Set();
+
 // PT-specific state
 let ptLines = [];
 let ptCurrentVehicle = null; // { line, boarding, alighting }
@@ -131,7 +135,12 @@ function bindEvents() {
 
     // History
     $('#btn-history').addEventListener('click', showHistory);
-    $('#btn-back-from-history').addEventListener('click', () => showScreen('setup-screen'));
+    $('#btn-back-from-history').addEventListener('click', () => { mergeMode = false; showScreen('setup-screen'); });
+    $('#btn-select-merge').addEventListener('click', enterMergeMode);
+    $('#btn-cancel-merge').addEventListener('click', exitMergeMode);
+    $('#btn-merge').addEventListener('click', mergeSelectedSessions);
+    $('#btn-import-csv').addEventListener('click', () => $('#csv-file-input').click());
+    $('#csv-file-input').addEventListener('change', handleCSVImport);
 
     // Traffic counting controls
     $('#btn-undo').addEventListener('click', undoLast);
@@ -203,6 +212,8 @@ function startSession() {
         return;
     }
 
+    const soundAlert = $('#sound-alert').checked;
+
     // Build session
     currentSession = {
         id: Date.now().toString(36),
@@ -213,6 +224,7 @@ function startSession() {
         approaches,
         movements,
         vehicleTypes,
+        soundAlert,
         intervals: [],
         createdAt: new Date().toISOString()
     };
@@ -319,9 +331,39 @@ function updateTimerDisplay() {
     }
 }
 
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 800;
+        osc.type = 'sine';
+        gain.gain.value = 0.3;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+        // Second beep after short pause
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1000;
+        osc2.type = 'sine';
+        gain2.gain.value = 0.3;
+        osc2.start(ctx.currentTime + 0.4);
+        osc2.stop(ctx.currentTime + 0.7);
+    } catch (e) {
+        // Audio not available — not critical
+    }
+}
+
 function onIntervalEnd() {
     if (navigator.vibrate) {
         navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+    if (currentSession?.soundAlert) {
+        playBeep();
     }
 
     saveSession();
@@ -609,11 +651,20 @@ function showHistory() {
     const container = $('#history-list');
     const sessions = getSessions();
 
+    // Update merge bar visibility
+    $('#merge-bar').style.display = mergeMode ? '' : 'none';
+    $('.history-actions').style.display = mergeMode ? 'none' : '';
+
     if (sessions.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No saved sessions yet.</p></div>';
+        $('.history-actions').style.display = 'none';
     } else {
-        container.innerHTML = sessions.map(s => `
-            <div class="history-item" data-id="${s.id}">
+        container.innerHTML = sessions.map(s => {
+            const checkbox = mergeMode && s.mode !== 'pt'
+                ? `<input type="checkbox" class="merge-cb" data-id="${s.id}" ${mergeSelected.has(s.id) ? 'checked' : ''}>`
+                : '';
+            return `<div class="history-item" data-id="${s.id}">
+                ${checkbox}
                 <div class="history-item-info">
                     <h3>${s.mode === 'pt' ? s.stopName : s.siteName}</h3>
                     <p>${s.mode === 'pt' ? 'PT Passengers' : 'Traffic'} | ${s.date} | ${s.intervals.length} interval(s)</p>
@@ -621,19 +672,32 @@ function showHistory() {
                 <div class="history-item-actions">
                     <button class="btn-delete-session" data-id="${s.id}" title="Delete">&times;</button>
                 </div>
-            </div>
-        `).reverse().join('');
+            </div>`;
+        }).reverse().join('');
 
-        // Bind click to load session
+        // Bind events
         container.querySelectorAll('.history-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-delete-session')) return;
+                if (e.target.closest('.merge-cb')) return;
+                if (mergeMode) {
+                    const cb = item.querySelector('.merge-cb');
+                    if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+                    return;
+                }
                 const session = sessions.find(s => s.id === item.dataset.id);
                 if (session) showResults(session);
             });
         });
 
-        // Bind delete buttons
+        container.querySelectorAll('.merge-cb').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (cb.checked) mergeSelected.add(cb.dataset.id);
+                else mergeSelected.delete(cb.dataset.id);
+                updateMergeBar();
+            });
+        });
+
         container.querySelectorAll('.btn-delete-session').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -646,6 +710,245 @@ function showHistory() {
     }
 
     showScreen('history-screen');
+}
+
+function enterMergeMode() {
+    mergeMode = true;
+    mergeSelected.clear();
+    showHistory();
+}
+
+function exitMergeMode() {
+    mergeMode = false;
+    mergeSelected.clear();
+    showHistory();
+}
+
+function updateMergeBar() {
+    $('#merge-count').textContent = `${mergeSelected.size} selected`;
+    $('#btn-merge').disabled = mergeSelected.size < 2;
+}
+
+function mergeSelectedSessions() {
+    const sessions = getSessions();
+    const toMerge = sessions.filter(s => mergeSelected.has(s.id));
+
+    if (toMerge.length < 2) return;
+
+    // Validate: all must be traffic mode
+    if (toMerge.some(s => s.mode === 'pt')) {
+        alert('Can only merge traffic counting sessions, not PT passenger sessions.');
+        return;
+    }
+
+    // Validate: same interval length
+    const intervalMins = toMerge[0].intervalMinutes;
+    if (toMerge.some(s => s.intervalMinutes !== intervalMins)) {
+        alert('Sessions must have the same time interval to merge.');
+        return;
+    }
+
+    // Build merged session
+    const base = toMerge[0];
+    const allApproaches = [...new Set(toMerge.flatMap(s => s.approaches))];
+    const allMovements = [...new Set(toMerge.flatMap(s => s.movements))];
+    const allVehicleTypes = [...new Set(toMerge.flatMap(s => s.vehicleTypes))];
+
+    // Find the max number of intervals across sessions
+    const maxIntervals = Math.max(...toMerge.map(s => s.intervals.length));
+
+    const mergedIntervals = [];
+    for (let i = 0; i < maxIntervals; i++) {
+        // Use timing from the first session that has this interval
+        const refInterval = toMerge.find(s => s.intervals[i])?.intervals[i];
+        if (!refInterval) continue;
+
+        const counts = {};
+        allApproaches.forEach(approach => {
+            counts[approach] = {};
+            allMovements.forEach(movement => {
+                counts[approach][movement] = {};
+                const motorTypes = allVehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
+                motorTypes.forEach(vt => { counts[approach][movement][vt] = 0; });
+            });
+            const crossingTypes = allVehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
+            if (crossingTypes.length > 0) {
+                counts[approach]['crossing'] = {};
+                crossingTypes.forEach(vt => { counts[approach]['crossing'][vt] = 0; });
+            }
+        });
+
+        // Sum counts from all sessions for this interval
+        toMerge.forEach(s => {
+            if (!s.intervals[i]) return;
+            const intv = s.intervals[i];
+            for (const approach of Object.keys(intv.counts)) {
+                for (const movement of Object.keys(intv.counts[approach])) {
+                    for (const vt of Object.keys(intv.counts[approach][movement])) {
+                        if (!counts[approach]) counts[approach] = {};
+                        if (!counts[approach][movement]) counts[approach][movement] = {};
+                        counts[approach][movement][vt] = (counts[approach][movement][vt] || 0) + intv.counts[approach][movement][vt];
+                    }
+                }
+            }
+        });
+
+        mergedIntervals.push({
+            startTime: refInterval.startTime,
+            endTime: refInterval.endTime,
+            counts
+        });
+    }
+
+    const mergedSession = {
+        id: Date.now().toString(36),
+        siteName: toMerge.map(s => s.siteName).filter((v, i, a) => a.indexOf(v) === i).join(' + '),
+        date: base.date,
+        startTime: base.startTime,
+        intervalMinutes: intervalMins,
+        approaches: allApproaches,
+        movements: allMovements,
+        vehicleTypes: allVehicleTypes,
+        intervals: mergedIntervals,
+        merged: true,
+        createdAt: new Date().toISOString()
+    };
+
+    // Save
+    const allSessions = getSessions();
+    allSessions.push(mergedSession);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allSessions));
+
+    exitMergeMode();
+    showResults(mergedSession);
+}
+
+// ===== CSV IMPORT =====
+function handleCSVImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const session = parseTrafficCSV(evt.target.result);
+            const sessions = getSessions();
+            sessions.push(session);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+            showHistory();
+            alert(`Imported: ${session.siteName} (${session.intervals.length} intervals)`);
+        } catch (err) {
+            alert('Failed to import CSV: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+}
+
+function parseTrafficCSV(csvText) {
+    const lines = csvText.replace(/^\uFEFF/, '').split('\n').filter(l => l.trim());
+    if (lines.length < 2) throw new Error('CSV has no data rows');
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+    // Detect if this is a traffic or PT CSV
+    if (headers.includes('Stop')) throw new Error('PT passenger CSV import not supported for merging');
+
+    const siteIdx = headers.indexOf('Site');
+    const dateIdx = headers.indexOf('Date');
+    const startIdx = headers.indexOf('Interval Start');
+    const endIdx = headers.indexOf('Interval End');
+    const approachIdx = headers.indexOf('Approach');
+    const dirIdx = headers.indexOf('Direction');
+
+    if (siteIdx < 0 || approachIdx < 0) throw new Error('CSV format not recognized');
+
+    // Vehicle type columns are between Direction and Total
+    const totalIdx = headers.indexOf('Total');
+    const vtHeaders = headers.slice(dirIdx + 1, totalIdx);
+
+    // Reverse map labels to IDs
+    const labelToId = {};
+    DEFAULT_VEHICLE_TYPES.forEach(vt => { labelToId[vt.label] = vt.id; });
+
+    const vtIds = vtHeaders.map(h => labelToId[h] || h.toLowerCase().replace(/[^a-z]/g, ''));
+
+    // Reverse map direction labels
+    const dirLabelToKey = {};
+    for (const [key, label] of Object.entries(DIRECTION_LABELS)) {
+        dirLabelToKey[label] = key;
+    }
+
+    // Parse rows
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].match(/(".*?"|[^,]+)/g)?.map(c => c.replace(/"/g, '').trim());
+        if (!cols || cols.length < headers.length) continue;
+        rows.push(cols);
+    }
+
+    const siteName = rows[0]?.[siteIdx] || 'Imported';
+    const date = rows[0]?.[dateIdx] || new Date().toISOString().split('T')[0];
+
+    // Gather unique approaches, movements, intervals
+    const approaches = [...new Set(rows.map(r => r[approachIdx]))];
+    const movementLabels = [...new Set(rows.map(r => r[dirIdx]))];
+    const movements = movementLabels.map(l => dirLabelToKey[l] || l.toLowerCase());
+    const intervalKeys = [...new Set(rows.map(r => `${r[startIdx]}|${r[endIdx]}`))];
+
+    // Detect interval minutes from first interval
+    const firstStart = rows[0]?.[startIdx];
+    const firstEnd = rows[0]?.[endIdx];
+    let intervalMinutes = 15;
+    if (firstStart && firstEnd) {
+        const [sh, sm] = firstStart.split(':').map(Number);
+        const [eh, em] = firstEnd.split(':').map(Number);
+        intervalMinutes = (eh * 60 + em) - (sh * 60 + sm);
+        if (intervalMinutes <= 0) intervalMinutes = 15;
+    }
+
+    // Build intervals
+    const intervals = intervalKeys.map(key => {
+        const [intStart, intEnd] = key.split('|');
+        const counts = {};
+        approaches.forEach(a => {
+            counts[a] = {};
+            movements.forEach(m => { counts[a][m] = {}; vtIds.forEach(vt => { counts[a][m][vt] = 0; }); });
+        });
+
+        rows.filter(r => `${r[startIdx]}|${r[endIdx]}` === key).forEach(r => {
+            const approach = r[approachIdx];
+            const movLabel = r[dirIdx];
+            const movement = dirLabelToKey[movLabel] || movLabel.toLowerCase();
+
+            vtIds.forEach((vtId, vi) => {
+                const val = parseInt(r[dirIdx + 1 + vi]) || 0;
+                if (counts[approach]?.[movement]) {
+                    counts[approach][movement][vtId] = val;
+                }
+            });
+        });
+
+        // Convert time strings to ISO
+        const startDate = new Date(`${date}T${intStart}:00`);
+        const endDate = new Date(`${date}T${intEnd}:00`);
+
+        return { startTime: startDate.toISOString(), endTime: endDate.toISOString(), counts };
+    });
+
+    return {
+        id: Date.now().toString(36),
+        siteName,
+        date,
+        startTime: rows[0]?.[startIdx] || '00:00',
+        intervalMinutes,
+        approaches,
+        movements,
+        vehicleTypes: vtIds,
+        intervals,
+        imported: true,
+        createdAt: new Date().toISOString()
+    };
 }
 
 // ===== RESULTS =====
@@ -670,6 +973,17 @@ function showResults(session) {
         `;
     }
 
+    // Show/hide diagram tab (only for traffic mode)
+    $('#tab-diagram').style.display = session.mode === 'pt' ? 'none' : '';
+
+    // Render analysis cards (traffic mode only)
+    const analysisContainer = $('#results-analysis');
+    if (session.mode !== 'pt') {
+        renderAnalysis(analysisContainer, session);
+    } else {
+        analysisContainer.innerHTML = '';
+    }
+
     // Reset to summary tab
     $$('.results-tab').forEach(t => t.classList.remove('active'));
     $('.results-tab[data-view="summary"]').classList.add('active');
@@ -691,6 +1005,8 @@ function renderResults(view) {
     } else {
         if (view === 'summary') {
             renderSummaryTable(container, session);
+        } else if (view === 'diagram') {
+            renderTurningDiagram(container, session);
         } else {
             renderIntervalTables(container, session);
         }
@@ -909,6 +1225,292 @@ async function shareCSV() {
     }
 }
 
+// ===== TRAFFIC ANALYSIS =====
+
+function getIntervalTotal(session, interval) {
+    let total = 0;
+    for (const approach of Object.keys(interval.counts)) {
+        for (const movement of Object.keys(interval.counts[approach])) {
+            for (const vt of Object.keys(interval.counts[approach][movement])) {
+                total += interval.counts[approach][movement][vt];
+            }
+        }
+    }
+    return total;
+}
+
+function calculatePeakHour(session) {
+    if (!session.intervals || session.intervals.length === 0) return null;
+
+    const intervalTotals = session.intervals.map((intv, i) => ({
+        index: i,
+        total: getIntervalTotal(session, intv),
+        start: new Date(intv.startTime),
+        end: new Date(intv.endTime)
+    }));
+
+    // Peak 15-min (or whatever interval)
+    const peak15 = intervalTotals.reduce((best, curr) => curr.total > best.total ? curr : best, intervalTotals[0]);
+
+    // Peak hour: sliding window of consecutive intervals summing to ~60 min
+    const intervalsPerHour = Math.round(60 / session.intervalMinutes);
+    let peakHour = null;
+
+    if (intervalTotals.length >= intervalsPerHour && intervalsPerHour > 1) {
+        let maxSum = 0;
+        let maxStart = 0;
+        for (let i = 0; i <= intervalTotals.length - intervalsPerHour; i++) {
+            let sum = 0;
+            for (let j = i; j < i + intervalsPerHour; j++) {
+                sum += intervalTotals[j].total;
+            }
+            if (sum > maxSum) {
+                maxSum = sum;
+                maxStart = i;
+            }
+        }
+        peakHour = {
+            startIndex: maxStart,
+            endIndex: maxStart + intervalsPerHour - 1,
+            volume: maxSum,
+            start: intervalTotals[maxStart].start,
+            end: intervalTotals[maxStart + intervalsPerHour - 1].end
+        };
+    }
+
+    return { peak15, peakHour, intervalTotals };
+}
+
+function calculatePHF(session, peakHourData) {
+    if (!peakHourData?.peakHour) return null;
+    if (session.intervalMinutes !== 15) return null;
+
+    const { startIndex, endIndex, volume } = peakHourData.peakHour;
+    const intervalTotals = peakHourData.intervalTotals;
+
+    // Find max 15-min within the peak hour
+    let max15 = 0;
+    for (let i = startIndex; i <= endIndex; i++) {
+        if (intervalTotals[i].total > max15) max15 = intervalTotals[i].total;
+    }
+
+    if (max15 === 0) return null;
+    return volume / (4 * max15);
+}
+
+function calculateDirectionalSplit(session) {
+    const approachTotals = {};
+    const approachMovements = {};
+    let grandTotal = 0;
+
+    const allMovements = getAllMovements(session);
+
+    session.approaches.forEach(approach => {
+        approachTotals[approach] = 0;
+        approachMovements[approach] = {};
+
+        allMovements.forEach(movement => {
+            let movTotal = 0;
+            const vtForMovement = getVehicleTypesForMovement(session, movement);
+
+            session.intervals.forEach(interval => {
+                vtForMovement.forEach(vt => {
+                    movTotal += interval.counts[approach]?.[movement]?.[vt] || 0;
+                });
+            });
+
+            approachMovements[approach][movement] = movTotal;
+            approachTotals[approach] += movTotal;
+        });
+
+        grandTotal += approachTotals[approach];
+    });
+
+    return { approachTotals, approachMovements, grandTotal };
+}
+
+function renderAnalysis(container, session) {
+    let html = '';
+
+    // Peak hour & PHF
+    const peakData = calculatePeakHour(session);
+    if (peakData) {
+        const { peak15, peakHour } = peakData;
+        const phf = calculatePHF(session, peakData);
+
+        html += '<div class="analysis-row">';
+
+        // Peak interval
+        html += `<div class="analysis-card">
+            <div class="analysis-title">Peak ${session.intervalMinutes}-min</div>
+            <div class="analysis-value">${peak15.total} veh</div>
+            <div class="analysis-detail">${formatTime(peak15.start)} - ${formatTime(peak15.end)}</div>
+        </div>`;
+
+        // Peak hour
+        if (peakHour) {
+            html += `<div class="analysis-card">
+                <div class="analysis-title">Peak Hour</div>
+                <div class="analysis-value">${peakHour.volume} veh</div>
+                <div class="analysis-detail">${formatTime(peakHour.start)} - ${formatTime(peakHour.end)}</div>
+            </div>`;
+        }
+
+        html += '</div>';
+
+        // PHF
+        if (phf !== null) {
+            html += `<div class="analysis-card">
+                <div class="analysis-title">Peak Hour Factor (PHF)</div>
+                <div class="analysis-value">${phf.toFixed(3)}</div>
+                <div class="analysis-detail">1.0 = uniform flow, 0.25 = all traffic in one 15-min period</div>
+            </div>`;
+        }
+    }
+
+    // Directional split
+    const split = calculateDirectionalSplit(session);
+    if (split.grandTotal > 0) {
+        html += `<div class="analysis-card">
+            <div class="analysis-title">Directional Split</div>
+            <div class="split-grid">`;
+
+        session.approaches.forEach(approach => {
+            const total = split.approachTotals[approach];
+            const pct = ((total / split.grandTotal) * 100).toFixed(1);
+
+            // Movement percentages
+            const movParts = [];
+            const movements = Object.keys(split.approachMovements[approach]);
+            movements.forEach(m => {
+                const mTotal = split.approachMovements[approach][m];
+                if (mTotal > 0 && total > 0) {
+                    const mPct = ((mTotal / total) * 100).toFixed(0);
+                    const arrow = DIRECTION_ARROWS[m] || '\u{1F6B6}';
+                    movParts.push(`${arrow} ${mPct}%`);
+                }
+            });
+
+            html += `<div class="split-card">
+                <div class="split-label">${approach}</div>
+                <div class="split-value">${total} <span class="split-pct">(${pct}%)</span></div>
+                <div class="split-movements">${movParts.join(' | ')}</div>
+            </div>`;
+        });
+
+        html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+// ===== TURNING MOVEMENT DIAGRAM =====
+
+function renderTurningDiagram(container, session) {
+    const split = calculateDirectionalSplit(session);
+    const approaches = session.approaches;
+    const n = approaches.length;
+
+    // Map approaches to positions: 0=top(North), 1=right(East), 2=bottom(South), 3=left(West)
+    const W = 380, H = 380;
+    const cx = W / 2, cy = H / 2;
+    const boxSize = 60; // intersection box
+
+    let svg = `<div class="diagram-container"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+    // Intersection box
+    svg += `<rect x="${cx - boxSize / 2}" y="${cy - boxSize / 2}" width="${boxSize}" height="${boxSize}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2" rx="4"/>`;
+
+    // Road lines extending from intersection
+    const roadWidth = 40;
+    // Top road
+    svg += `<rect x="${cx - roadWidth / 2}" y="0" width="${roadWidth}" height="${cy - boxSize / 2}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Bottom road
+    svg += `<rect x="${cx - roadWidth / 2}" y="${cy + boxSize / 2}" width="${roadWidth}" height="${cy - boxSize / 2}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Left road
+    svg += `<rect x="0" y="${cy - roadWidth / 2}" width="${cx - boxSize / 2}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+    // Right road
+    svg += `<rect x="${cx + boxSize / 2}" y="${cy - roadWidth / 2}" width="${cx - boxSize / 2}" height="${roadWidth}" fill="#f3f4f6" stroke="#dadce0" stroke-width="1"/>`;
+
+    // Arrow positions for each approach direction
+    // Each approach has: position on the diagram, and arrow configs for movements
+    const positions = [
+        { // Top (index 0) - traffic comes from top going down
+            labelX: cx, labelY: 15,
+            arrows: {
+                left:     { x1: cx - 8, y1: cy - boxSize / 2 - 10, x2: cx - boxSize / 2 - 10, y2: cy - 8, color: '#4285f4' },
+                straight: { x1: cx + 5, y1: cy - boxSize / 2 - 10, x2: cx + 5, y2: cy + boxSize / 2 + 10, color: '#34a853' },
+                right:    { x1: cx + 8, y1: cy - boxSize / 2 - 10, x2: cx + boxSize / 2 + 10, y2: cy - 8, color: '#ea4335' }
+            }
+        },
+        { // Right (index 1) - traffic comes from right going left
+            labelX: W - 15, labelY: cy,
+            arrows: {
+                left:     { x1: cx + boxSize / 2 + 10, y1: cy - 8, x2: cx + 8, y2: cy - boxSize / 2 - 10, color: '#4285f4' },
+                straight: { x1: cx + boxSize / 2 + 10, y1: cy + 5, x2: cx - boxSize / 2 - 10, y2: cy + 5, color: '#34a853' },
+                right:    { x1: cx + boxSize / 2 + 10, y1: cy + 8, x2: cx + 8, y2: cy + boxSize / 2 + 10, color: '#ea4335' }
+            }
+        },
+        { // Bottom (index 2) - traffic comes from bottom going up
+            labelX: cx, labelY: H - 8,
+            arrows: {
+                left:     { x1: cx + 8, y1: cy + boxSize / 2 + 10, x2: cx + boxSize / 2 + 10, y2: cy + 8, color: '#4285f4' },
+                straight: { x1: cx - 5, y1: cy + boxSize / 2 + 10, x2: cx - 5, y2: cy - boxSize / 2 - 10, color: '#34a853' },
+                right:    { x1: cx - 8, y1: cy + boxSize / 2 + 10, x2: cx - boxSize / 2 - 10, y2: cy + 8, color: '#ea4335' }
+            }
+        },
+        { // Left (index 3) - traffic comes from left going right
+            labelX: 15, labelY: cy,
+            arrows: {
+                left:     { x1: cx - boxSize / 2 - 10, y1: cy + 8, x2: cx - 8, y2: cy + boxSize / 2 + 10, color: '#4285f4' },
+                straight: { x1: cx - boxSize / 2 - 10, y1: cy - 5, x2: cx + boxSize / 2 + 10, y2: cy - 5, color: '#34a853' },
+                right:    { x1: cx - boxSize / 2 - 10, y1: cy - 8, x2: cx - 8, y2: cy - boxSize / 2 - 10, color: '#ea4335' }
+            }
+        }
+    ];
+
+    // Arrow marker
+    svg += `<defs>
+        <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4285f4"/></marker>
+        <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#34a853"/></marker>
+        <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ea4335"/></marker>
+    </defs>`;
+
+    const markerMap = { '#4285f4': 'arrowBlue', '#34a853': 'arrowGreen', '#ea4335': 'arrowRed' };
+
+    for (let i = 0; i < Math.min(n, 4); i++) {
+        const approach = approaches[i];
+        const pos = positions[i];
+
+        // Approach label
+        const anchor = i === 0 || i === 2 ? 'middle' : (i === 1 ? 'end' : 'start');
+        svg += `<text x="${pos.labelX}" y="${pos.labelY}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="${'var(--primary)'}">${approach}</text>`;
+
+        // Draw arrows for each movement
+        const movements = session.movements || [];
+        movements.forEach(movement => {
+            if (!pos.arrows[movement]) return;
+            const a = pos.arrows[movement];
+            const vol = split.approachMovements[approach]?.[movement] || 0;
+
+            svg += `<line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="${a.color}" stroke-width="2" marker-end="url(#${markerMap[a.color]})"/>`;
+
+            // Volume label at midpoint
+            const mx = (a.x1 + a.x2) / 2;
+            const my = (a.y1 + a.y2) / 2;
+            svg += `<text x="${mx}" y="${my - 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${a.color}">${vol}</text>`;
+        });
+    }
+
+    // Legend
+    svg += `<text x="10" y="${H - 40}" font-size="9" fill="#4285f4" font-weight="600">&#9632; Left</text>`;
+    svg += `<text x="10" y="${H - 28}" font-size="9" fill="#34a853" font-weight="600">&#9632; Straight</text>`;
+    svg += `<text x="10" y="${H - 16}" font-size="9" fill="#ea4335" font-weight="600">&#9632; Right</text>`;
+
+    svg += `</svg></div>`;
+    container.innerHTML = svg;
+}
+
 // ===== PT PASSENGER COUNTING =====
 
 function initPTSetupForm() {
@@ -968,6 +1570,7 @@ function startPTSession() {
         startTime,
         intervalMinutes,
         lines: [...ptLines],
+        soundAlert: $('#pt-sound-alert').checked,
         intervals: [],
         createdAt: new Date().toISOString()
     };
