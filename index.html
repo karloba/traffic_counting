@@ -7,6 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Traffic Counter</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <!-- SCREEN 1: Session Setup -->
@@ -233,7 +234,8 @@
             <h1>Results</h1>
             <div class="header-actions">
                 <button id="btn-share" class="btn-icon" title="Share">&#128228;</button>
-                <button id="btn-export-csv" class="btn-icon" title="Export CSV">&#128190;</button>
+                <button id="btn-export-xlsx" class="btn-icon" title="Export Excel" style="font-size:1rem;font-weight:700;">.xlsx</button>
+                <button id="btn-export-csv" class="btn-icon" title="Export CSV" style="font-size:1rem;font-weight:700;">.csv</button>
             </div>
         </header>
 

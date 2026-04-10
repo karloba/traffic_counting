@@ -164,6 +164,7 @@ function bindEvents() {
     // Results
     $('#btn-back-setup').addEventListener('click', () => showScreen('setup-screen'));
     $('#btn-export-csv').addEventListener('click', exportCSV);
+    $('#btn-export-xlsx').addEventListener('click', exportXLSX);
     $('#btn-share').addEventListener('click', shareCSV);
     $$('.results-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1237,6 +1238,200 @@ async function shareCSV() {
         alert('Sharing is not supported on this browser. The file will be downloaded instead — you can then send it manually.');
         exportCSV();
     }
+}
+
+// ===== EXCEL EXPORT =====
+
+function exportXLSX() {
+    const session = currentSession;
+    if (!session) return;
+
+    if (typeof XLSX === 'undefined') {
+        alert('Excel library not loaded. Check your internet connection and try again.');
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    if (session.mode === 'pt') {
+        buildPTExcelSheets(wb, session);
+    } else {
+        buildTrafficExcelSheets(wb, session);
+    }
+
+    const name = session.mode === 'pt' ? session.stopName : session.siteName;
+    const filename = `${name.replace(/\s+/g, '_')}_${session.date}.xlsx`;
+    XLSX.writeFile(wb, filename);
+}
+
+function buildTrafficExcelSheets(wb, session) {
+    const allMovements = getAllMovements(session);
+    const vtLabels = session.vehicleTypes.map(vt => {
+        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
+        return v ? v.label : vt;
+    });
+
+    // Sheet 1: Raw Data
+    const rawRows = [['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction', ...vtLabels, 'Total']];
+    session.intervals.forEach(interval => {
+        const start = formatTime(new Date(interval.startTime));
+        const end = formatTime(new Date(interval.endTime));
+        session.approaches.forEach(approach => {
+            allMovements.forEach(movement => {
+                const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
+                const total = values.reduce((a, b) => a + b, 0);
+                rawRows.push([session.siteName, session.date, start, end, approach, DIRECTION_LABELS[movement], ...values, total]);
+            });
+        });
+    });
+    const wsRaw = XLSX.utils.aoa_to_sheet(rawRows);
+    XLSX.utils.book_append_sheet(wb, wsRaw, 'Raw Data');
+
+    // Sheet 2: Summary Table
+    const summaryRows = [['Approach', 'Direction', ...vtLabels, 'Total']];
+    let grandTotals = {};
+    session.vehicleTypes.forEach(vt => grandTotals[vt] = 0);
+    let grandTotal = 0;
+
+    session.approaches.forEach(approach => {
+        allMovements.forEach(movement => {
+            const totals = {};
+            session.vehicleTypes.forEach(vt => totals[vt] = 0);
+            const vtForMov = getVehicleTypesForMovement(session, movement);
+            session.intervals.forEach(interval => {
+                vtForMov.forEach(vt => { totals[vt] += interval.counts[approach]?.[movement]?.[vt] || 0; });
+            });
+            const rowTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+            grandTotal += rowTotal;
+            session.vehicleTypes.forEach(vt => grandTotals[vt] += totals[vt]);
+            const arrow = DIRECTION_LABELS[movement];
+            summaryRows.push([approach, arrow, ...session.vehicleTypes.map(vt => totals[vt] || ''), rowTotal]);
+        });
+    });
+    summaryRows.push(['TOTAL', '', ...session.vehicleTypes.map(vt => grandTotals[vt]), grandTotal]);
+    if (grandTotal > 0) {
+        summaryRows.push(['%', '', ...session.vehicleTypes.map(vt => grandTotals[vt] > 0 ? ((grandTotals[vt] / grandTotal) * 100).toFixed(1) + '%' : ''), '100%']);
+    }
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+    // Sheet 3: Vehicle % (per approach+movement)
+    const vtRows = [['Approach', 'Movement', ...vtLabels, 'Total']];
+    const data = {};
+    session.approaches.forEach(a => {
+        data[a] = {};
+        allMovements.forEach(m => {
+            data[a][m] = {};
+            session.vehicleTypes.forEach(vt => data[a][m][vt] = 0);
+        });
+    });
+    session.intervals.forEach(interval => {
+        for (const a of Object.keys(interval.counts)) {
+            for (const m of Object.keys(interval.counts[a])) {
+                for (const vt of Object.keys(interval.counts[a][m])) {
+                    data[a][m][vt] = (data[a][m][vt] || 0) + interval.counts[a][m][vt];
+                }
+            }
+        }
+    });
+
+    session.approaches.forEach(approach => {
+        allMovements.forEach(movement => {
+            const vtForMov = getVehicleTypesForMovement(session, movement);
+            const rowTotal = vtForMov.reduce((sum, vt) => sum + (data[approach][movement]?.[vt] || 0), 0);
+            if (rowTotal === 0) return;
+
+            // Count row
+            vtRows.push([approach, DIRECTION_LABELS[movement], ...session.vehicleTypes.map(vt => data[approach][movement]?.[vt] || ''), rowTotal]);
+            // Percentage row
+            vtRows.push(['', '% of row', ...session.vehicleTypes.map(vt => {
+                const count = data[approach][movement]?.[vt] || 0;
+                return count > 0 ? ((count / rowTotal) * 100).toFixed(1) + '%' : '';
+            }), '100%']);
+        });
+    });
+    const wsVt = XLSX.utils.aoa_to_sheet(vtRows);
+    XLSX.utils.book_append_sheet(wb, wsVt, 'Vehicle %');
+
+    // Sheet 4: Analysis
+    const analysisRows = [['Traffic Analysis']];
+    analysisRows.push([]);
+
+    const peakData = calculatePeakHour(session);
+    if (peakData) {
+        const { peak15, peakHour } = peakData;
+        analysisRows.push([`Peak ${session.intervalMinutes}-min Interval`]);
+        analysisRows.push(['Volume', peak15.total]);
+        analysisRows.push(['Time', `${formatTime(peak15.start)} - ${formatTime(peak15.end)}`]);
+        analysisRows.push([]);
+
+        if (peakHour) {
+            analysisRows.push(['Peak Hour']);
+            analysisRows.push(['Volume', peakHour.volume]);
+            analysisRows.push(['Time', `${formatTime(peakHour.start)} - ${formatTime(peakHour.end)}`]);
+
+            const phf = calculatePHF(session, peakData);
+            if (phf !== null) {
+                analysisRows.push(['PHF', phf.toFixed(3)]);
+            }
+            analysisRows.push([]);
+        }
+    }
+
+    const split = calculateDirectionalSplit(session);
+    if (split.grandTotal > 0) {
+        analysisRows.push(['Directional Split']);
+        analysisRows.push(['Approach', 'Volume', '%']);
+        session.approaches.forEach(approach => {
+            const total = split.approachTotals[approach];
+            const pct = ((total / split.grandTotal) * 100).toFixed(1) + '%';
+            analysisRows.push([approach, total, pct]);
+        });
+    }
+
+    const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisRows);
+    XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analysis');
+}
+
+function buildPTExcelSheets(wb, session) {
+    // Sheet 1: Raw Data
+    const rawRows = [['Stop', 'Date', 'Interval Start', 'Interval End', 'Time', 'Line', 'Boarding', 'Alighting']];
+    session.intervals.forEach(interval => {
+        const intStart = formatTime(new Date(interval.startTime));
+        const intEnd = formatTime(new Date(interval.endTime));
+        if (interval.vehicles) {
+            interval.vehicles.forEach(v => {
+                rawRows.push([session.stopName, session.date, intStart, intEnd, formatTime(new Date(v.time)), v.line, v.boarding, v.alighting]);
+            });
+        }
+    });
+    const wsRaw = XLSX.utils.aoa_to_sheet(rawRows);
+    XLSX.utils.book_append_sheet(wb, wsRaw, 'Raw Data');
+
+    // Sheet 2: Summary by Line
+    const lineTotals = {};
+    session.lines.forEach(l => lineTotals[l] = { vehicles: 0, boarding: 0, alighting: 0 });
+    session.intervals.forEach(interval => {
+        if (interval.vehicles) {
+            interval.vehicles.forEach(v => {
+                if (!lineTotals[v.line]) lineTotals[v.line] = { vehicles: 0, boarding: 0, alighting: 0 };
+                lineTotals[v.line].vehicles++;
+                lineTotals[v.line].boarding += v.boarding;
+                lineTotals[v.line].alighting += v.alighting;
+            });
+        }
+    });
+
+    const summaryRows = [['Line', 'Vehicles', 'Boarding', 'Alighting', 'Net Change']];
+    let gv = 0, gb = 0, ga = 0;
+    for (const line of Object.keys(lineTotals)) {
+        const t = lineTotals[line];
+        gv += t.vehicles; gb += t.boarding; ga += t.alighting;
+        summaryRows.push([line, t.vehicles, t.boarding, t.alighting, t.boarding - t.alighting]);
+    }
+    summaryRows.push(['TOTAL', gv, gb, ga, gb - ga]);
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 }
 
 // ===== VEHICLE SPLIT TABLE =====
