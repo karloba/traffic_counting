@@ -142,6 +142,8 @@ function bindEvents() {
     // PT counting controls
     $('#btn-boarding').addEventListener('click', () => ptCount('boarding'));
     $('#btn-alighting').addEventListener('click', () => ptCount('alighting'));
+    $('#btn-boarding-minus').addEventListener('click', () => ptDecrement('boarding'));
+    $('#btn-alighting-minus').addEventListener('click', () => ptDecrement('alighting'));
     $('#btn-pt-done').addEventListener('click', ptFinishVehicle);
     $('#btn-pt-cancel').addEventListener('click', ptCancelVehicle);
     $('#btn-toggle-input').addEventListener('click', ptToggleInputMode);
@@ -1056,6 +1058,16 @@ function ptCount(type) {
     if (navigator.vibrate) navigator.vibrate(30);
     $('#boarding-count').textContent = ptCurrentVehicle.boarding;
     $('#alighting-count').textContent = ptCurrentVehicle.alighting;
+}
+
+function ptDecrement(type) {
+    if (!ptCurrentVehicle) return;
+    if (ptCurrentVehicle[type] > 0) {
+        ptCurrentVehicle[type]--;
+        if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+        $('#boarding-count').textContent = ptCurrentVehicle.boarding;
+        $('#alighting-count').textContent = ptCurrentVehicle.alighting;
+    }
 }
 
 function ptToggleInputMode() {

@@ -816,6 +816,29 @@ body {
     margin-bottom: 12px;
 }
 
+.pt-count-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pt-minus-btn {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #f3f4f6;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.pt-minus-btn:active {
+    background: #e5e7eb;
+    transform: scale(0.95);
+}
+
 .pt-big-btn {
     display: flex;
     flex-direction: column;

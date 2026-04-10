@@ -177,14 +177,20 @@
                 <button id="btn-pt-cancel" class="btn-small">&times;</button>
             </div>
             <div class="pt-count-buttons">
-                <button id="btn-boarding" class="pt-big-btn boarding">
-                    <span class="pt-btn-label">BOARDING</span>
-                    <span id="boarding-count" class="pt-btn-count">0</span>
-                </button>
-                <button id="btn-alighting" class="pt-big-btn alighting">
-                    <span class="pt-btn-label">ALIGHTING</span>
-                    <span id="alighting-count" class="pt-btn-count">0</span>
-                </button>
+                <div class="pt-count-col">
+                    <button id="btn-boarding" class="pt-big-btn boarding">
+                        <span class="pt-btn-label">BOARDING</span>
+                        <span id="boarding-count" class="pt-btn-count">0</span>
+                    </button>
+                    <button id="btn-boarding-minus" class="pt-minus-btn">-1</button>
+                </div>
+                <div class="pt-count-col">
+                    <button id="btn-alighting" class="pt-big-btn alighting">
+                        <span class="pt-btn-label">ALIGHTING</span>
+                        <span id="alighting-count" class="pt-btn-count">0</span>
+                    </button>
+                    <button id="btn-alighting-minus" class="pt-minus-btn">-1</button>
+                </div>
             </div>
             <div class="pt-input-toggle">
                 <button id="btn-toggle-input" class="btn-small">Switch to number entry</button>
