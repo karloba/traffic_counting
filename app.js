@@ -165,7 +165,7 @@ function bindEvents() {
     $('#btn-back-setup').addEventListener('click', () => showScreen('setup-screen'));
     $('#btn-export-csv').addEventListener('click', exportCSV);
     $('#btn-export-xlsx').addEventListener('click', exportXLSX);
-    $('#btn-share').addEventListener('click', shareCSV);
+    $('#btn-share').addEventListener('click', shareData);
     $$('.results-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             $$('.results-tab').forEach(t => t.classList.remove('active'));
@@ -1212,31 +1212,49 @@ function exportCSV() {
     URL.revokeObjectURL(url);
 }
 
-async function shareCSV() {
+async function shareData() {
     const session = currentSession;
     if (!session) return;
 
-    const csv = buildCSV(session);
-    const filename = getCSVFilename(session);
-    const file = new File(['\uFEFF' + csv], filename, { type: 'text/csv' });
+    const name = session.mode === 'pt' ? session.stopName : session.siteName;
+    const title = `Traffic Count - ${name}`;
+    const text = `Traffic count data: ${name}, ${session.date}, ${session.intervals.length} intervals`;
 
-    // Use Web Share API if available (works on iOS Safari, Android Chrome)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Build both files
+    const csv = buildCSV(session);
+    const csvFile = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
+
+    const files = [csvFile];
+
+    // Try to include Excel file too
+    if (typeof XLSX !== 'undefined') {
         try {
-            await navigator.share({
-                title: `Traffic Count - ${session.siteName}`,
-                text: `Traffic count data: ${session.siteName}, ${session.date}, ${session.intervals.length} intervals`,
-                files: [file]
-            });
+            const wb = XLSX.utils.book_new();
+            if (session.mode === 'pt') {
+                buildPTExcelSheets(wb, session);
+            } else {
+                buildTrafficExcelSheets(wb, session);
+            }
+            const xlsxName = `${name.replace(/\s+/g, '_')}_${session.date}.xlsx`;
+            const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const xlsxFile = new File([xlsxData], xlsxName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            files.push(xlsxFile);
+        } catch (e) {
+            // Excel generation failed — share CSV only
+        }
+    }
+
+    // Use Web Share API if available
+    if (navigator.canShare && navigator.canShare({ files })) {
+        try {
+            await navigator.share({ title, text, files });
         } catch (e) {
             if (e.name !== 'AbortError') {
-                alert('Sharing failed. Try the download button instead.');
+                alert('Sharing failed. Try the download buttons instead.');
             }
         }
     } else {
-        // Fallback: download the file
-        alert('Sharing is not supported on this browser. The file will be downloaded instead — you can then send it manually.');
-        exportCSV();
+        alert('Sharing is not supported on this browser. Use the download buttons instead.');
     }
 }
 
