@@ -1,18 +1,336 @@
+// ===== I18N =====
+const I18N = {
+    en: {
+        app_title: 'Traffic Counter',
+        session_history: 'Session History',
+        mode_traffic: 'Traffic Counting',
+        mode_pt: 'PT Passengers',
+        mode_merge: 'Merge Files',
+        traffic_hint: 'Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.',
+        pt_hint: 'Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.',
+        merge_hint: 'Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.',
+        counting_hint: 'Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.',
+        pt_counting_hint: 'Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.',
+        site_name: 'Site Name',
+        site_name_ph: 'e.g. Main St & 2nd Ave',
+        date: 'Date',
+        start_time: 'Start Time',
+        num_approaches: 'Number of Approaches',
+        approach_names: 'Approach Names',
+        turning_movements: 'Turning Movements',
+        mv_left: 'Left',
+        mv_straight: 'Straight',
+        mv_right: 'Right',
+        mv_uturn: 'U-turn',
+        time_interval: 'Time Interval (minutes)',
+        vehicle_types: 'Vehicle Types',
+        sound_alert: 'Sound alert on interval change',
+        start_counting: 'Start Counting',
+        stop_name: 'Stop Name',
+        stop_name_ph: 'e.g. Glavni kolodvor',
+        lines_at_stop: 'Lines at this stop',
+        line_ph: 'e.g. Tram 6, Bus 268',
+        add: 'Add',
+        select_files: 'Select Excel files to merge',
+        tap_select_files: 'Tap to select .xlsx files',
+        merge_view: 'Merge & View Results',
+        credit: 'Made by: Karlo Babojelić, University of Zagreb Faculty of Transport and Traffic Sciences',
+        undo: 'Undo',
+        pause: 'Pause',
+        resume: 'Resume',
+        summary: 'Summary',
+        end: 'End',
+        select_arriving_line: 'Select arriving line:',
+        boarding: 'BOARDING',
+        alighting: 'ALIGHTING',
+        boarding_cap: 'Boarding',
+        alighting_cap: 'Alighting',
+        switch_number_entry: 'Switch to number entry',
+        switch_tap_counting: 'Switch to tap counting',
+        done: 'Done',
+        vehicle_log: 'Vehicle Log',
+        results: 'Results',
+        vehicle_pct: 'Vehicle %',
+        by_interval: 'By Interval',
+        diagram: 'Diagram',
+        merge_selected: 'Merge Selected',
+        cancel: 'Cancel',
+        select_and_merge: 'Select & Merge',
+        quick_summary: 'Quick Summary',
+        approach: 'Approach',
+        direction: 'Direction',
+        movement: 'Movement',
+        total: 'Total',
+        line: 'Line',
+        vehicles: 'Vehicles',
+        net_change: 'Net Change',
+        peak_15: 'Peak',
+        peak_hour: 'Peak Hour',
+        phf: 'Peak Hour Factor (PHF)',
+        phf_detail: '1.0 = uniform flow, 0.25 = all traffic in one 15-min period',
+        directional_split: 'Directional Split',
+        vehicle_type_split: 'Vehicle Type Split',
+        mode_label: 'Mode',
+        mode_pt_full: 'PT Passenger Counting',
+        intervals_label: 'Intervals',
+        approaches_label: 'Approaches',
+        lines_label: 'Lines',
+        dir_left: 'Left Turn',
+        dir_straight: 'Straight',
+        dir_right: 'Right Turn',
+        dir_uturn: 'U-Turn',
+        dir_crossing: 'Crossing',
+        veh_car: 'Car',
+        veh_lgv: 'LGV',
+        veh_hgv: 'HGV',
+        veh_bus: 'Bus',
+        veh_tram: 'Tram',
+        veh_motorcycle: 'M/cycle',
+        veh_bicycle: 'Bicycle',
+        veh_pedestrian: 'Pedestr.',
+        veh_escooter: 'E-scoot',
+        veh_taxi: 'Taxi',
+        ap_north: 'North',
+        ap_east: 'East',
+        ap_south: 'South',
+        ap_west: 'West',
+        ap_placeholder: 'Approach',
+        current_interval_total: 'Current Interval Total',
+        intervals_done: 'Intervals Done',
+        session_grand_total: 'Session grand total',
+        session_totals: 'Session',
+        confirm_end: 'End this counting session?',
+        confirm_delete: 'Delete this session?',
+        alert_no_movements: 'Please select at least one turning movement.',
+        alert_no_vehicles: 'Please select at least one vehicle type.',
+        alert_no_lines: 'Please add at least one line.',
+        alert_share_fail: 'Sharing failed. Try the download buttons instead.',
+        alert_share_unsupported: 'Sharing is not supported on this browser. Use the download buttons instead.',
+        alert_excel_missing: 'Excel library not loaded. Check your internet connection and try again.',
+        alert_merge_pt: 'Can only merge traffic counting sessions, not PT passenger sessions.',
+        alert_merge_interval: 'All files must have the same time interval to merge.',
+        alert_merge_interval_import: 'Sessions must have the same time interval to merge.',
+        empty_history: 'No saved sessions yet.',
+        no_vehicles_counted: 'No vehicles counted yet',
+        no_vehicles_interval: 'No vehicles counted',
+        n_selected: '{n} selected',
+        files_loaded: '{n} file(s) loaded — tap to add more',
+        peak_suffix: 'veh',
+        pt_mode_tag: 'PT Passengers',
+        traffic_mode_tag: 'Traffic',
+        traffic_proportions_title: 'Vehicle Type Proportions by Approach & Movement',
+        pct_of_row: '% of row',
+        interval_label: 'Interval',
+        subtotal: 'Subtotal',
+        vehicles_count: 'Vehicles'
+    },
+    hr: {
+        app_title: 'Brojač prometa',
+        session_history: 'Povijest brojanja',
+        mode_traffic: 'Brojanje prometa',
+        mode_pt: 'Putnici JPP',
+        mode_merge: 'Spoji datoteke',
+        traffic_hint: 'Brojite vozila na raskrižju prema vrsti, smjeru skretanja i privozu. Odaberite raspored raskrižja, vrste vozila i vremenski interval. Tapnite odgovarajuće vozilo kad prolazi. Dugi pritisak za ispravak krivog brojanja. Podaci se automatski spremaju na svakom intervalu.',
+        pt_hint: 'Brojite putnike koji ulaze i izlaze na stajalištu JPP. Dodajte linije autobusa/tramvaja koje prolaze vašim stajalištem. Kad vozilo stigne, odaberite liniju, zatim tapnite Ulaz/Izlaz za svakog putnika (ili prebacite na unos broja za prometnija stajališta). Tapnite Gotovo za spremanje vozila. Podaci se automatski spremaju na svakom intervalu.',
+        merge_hint: 'Odaberite 2 ili više .xlsx datoteka koje su studenti izvezli dok su brojali na istom raskrižju. Datoteke će se spojiti kombiniranjem privoza i zbrajanjem preklapajućih podataka.',
+        counting_hint: 'Tapnite gumb za brojanje. Dugi pritisak za oduzimanje. Koristite kartice za promjenu privoza. Poništi vraća zadnji potez.',
+        pt_counting_hint: 'Tapnite liniju kad vozilo stigne. Brojite ulaze/izlaze, zatim tapnite Gotovo. Koristite unos broja za prometnija stajališta. Tapnite x na bilo kojem zapisu za brisanje.',
+        site_name: 'Naziv lokacije',
+        site_name_ph: 'npr. Savska ul. i Vukovarska',
+        date: 'Datum',
+        start_time: 'Vrijeme početka',
+        num_approaches: 'Broj privoza',
+        approach_names: 'Nazivi privoza',
+        turning_movements: 'Smjerovi skretanja',
+        mv_left: 'Lijevo',
+        mv_straight: 'Ravno',
+        mv_right: 'Desno',
+        mv_uturn: 'Polukružno',
+        time_interval: 'Vremenski interval (minute)',
+        vehicle_types: 'Vrste vozila',
+        sound_alert: 'Zvučni signal na kraju intervala',
+        start_counting: 'Započni brojanje',
+        stop_name: 'Naziv stajališta',
+        stop_name_ph: 'npr. Glavni kolodvor',
+        lines_at_stop: 'Linije na ovom stajalištu',
+        line_ph: 'npr. Tramvaj 6, Autobus 268',
+        add: 'Dodaj',
+        select_files: 'Odaberite Excel datoteke za spajanje',
+        tap_select_files: 'Tapnite za odabir .xlsx datoteka',
+        merge_view: 'Spoji i prikaži rezultate',
+        credit: 'Izradio: Karlo Babojelić, Sveučilište u Zagrebu, Fakultet prometnih znanosti',
+        undo: 'Poništi',
+        pause: 'Pauza',
+        resume: 'Nastavi',
+        summary: 'Sažetak',
+        end: 'Kraj',
+        select_arriving_line: 'Odaberite dolaznu liniju:',
+        boarding: 'ULAZ',
+        alighting: 'IZLAZ',
+        boarding_cap: 'Ulaz',
+        alighting_cap: 'Izlaz',
+        switch_number_entry: 'Prebaci na unos broja',
+        switch_tap_counting: 'Prebaci na brojanje tapanjem',
+        done: 'Gotovo',
+        vehicle_log: 'Popis vozila',
+        results: 'Rezultati',
+        vehicle_pct: 'Vozila %',
+        by_interval: 'Po intervalu',
+        diagram: 'Dijagram',
+        merge_selected: 'Spoji odabrano',
+        cancel: 'Odustani',
+        select_and_merge: 'Odaberi i spoji',
+        quick_summary: 'Brzi sažetak',
+        approach: 'Privoz',
+        direction: 'Smjer',
+        movement: 'Kretanje',
+        total: 'Ukupno',
+        line: 'Linija',
+        vehicles: 'Vozila',
+        net_change: 'Neto promjena',
+        peak_15: 'Vršni',
+        peak_hour: 'Vršni sat',
+        phf: 'Faktor vršnog sata (PHF)',
+        phf_detail: '1.0 = ujednačen tok, 0.25 = sav promet u jednom 15-min razdoblju',
+        directional_split: 'Podjela po smjerovima',
+        vehicle_type_split: 'Podjela po vrsti vozila',
+        mode_label: 'Način',
+        mode_pt_full: 'Brojanje putnika JPP',
+        intervals_label: 'Intervala',
+        approaches_label: 'Privozi',
+        lines_label: 'Linije',
+        dir_left: 'Skretanje lijevo',
+        dir_straight: 'Ravno',
+        dir_right: 'Skretanje desno',
+        dir_uturn: 'Polukružno',
+        dir_crossing: 'Prelaženje',
+        veh_car: 'Auto',
+        veh_lgv: 'LDV',
+        veh_hgv: 'TDV',
+        veh_bus: 'Bus',
+        veh_tram: 'Tram',
+        veh_motorcycle: 'Motocikl',
+        veh_bicycle: 'Bicikl',
+        veh_pedestrian: 'Pješak',
+        veh_escooter: 'E-rom.',
+        veh_taxi: 'Taxi',
+        ap_north: 'Sjever',
+        ap_east: 'Istok',
+        ap_south: 'Jug',
+        ap_west: 'Zapad',
+        ap_placeholder: 'Privoz',
+        current_interval_total: 'Ukupno u trenutnom intervalu',
+        intervals_done: 'Završenih intervala',
+        session_grand_total: 'Ukupno sesije',
+        session_totals: 'Sesija',
+        confirm_end: 'Završiti ovu sesiju brojanja?',
+        confirm_delete: 'Obrisati ovu sesiju?',
+        alert_no_movements: 'Odaberite barem jedan smjer skretanja.',
+        alert_no_vehicles: 'Odaberite barem jednu vrstu vozila.',
+        alert_no_lines: 'Dodajte barem jednu liniju.',
+        alert_share_fail: 'Dijeljenje nije uspjelo. Pokušajte s gumbima za preuzimanje.',
+        alert_share_unsupported: 'Dijeljenje nije podržano u ovom pregledniku. Koristite gumbe za preuzimanje.',
+        alert_excel_missing: 'Excel biblioteka nije učitana. Provjerite internetsku vezu i pokušajte ponovno.',
+        alert_merge_pt: 'Mogu se spojiti samo sesije brojanja prometa, ne i sesije putnika JPP.',
+        alert_merge_interval: 'Sve datoteke moraju imati isti vremenski interval za spajanje.',
+        alert_merge_interval_import: 'Sesije moraju imati isti vremenski interval za spajanje.',
+        empty_history: 'Još nema spremljenih sesija.',
+        no_vehicles_counted: 'Još nema prebrojanih vozila',
+        no_vehicles_interval: 'Nema prebrojanih vozila',
+        n_selected: '{n} odabrano',
+        files_loaded: '{n} datoteka učitano — tapnite za dodavanje',
+        peak_suffix: 'voz',
+        pt_mode_tag: 'Putnici JPP',
+        traffic_mode_tag: 'Promet',
+        traffic_proportions_title: 'Udio vrsta vozila po privozu i kretanju',
+        pct_of_row: '% retka',
+        interval_label: 'Interval',
+        subtotal: 'Međuzbroj',
+        vehicles_count: 'Vozila'
+    }
+};
+
+let currentLang = localStorage.getItem('tc_lang') || 'en';
+
+function t(key, params) {
+    let str = (I18N[currentLang] && I18N[currentLang][key]) || (I18N.en[key] || key);
+    if (params) {
+        for (const k of Object.keys(params)) {
+            str = str.replace(`{${k}}`, params[k]);
+        }
+    }
+    return str;
+}
+
+function applyTranslations() {
+    // Text content
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+    });
+    // Placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.placeholder = t(key);
+    });
+    // Titles
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.title = t(key);
+    });
+    // Active language button
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === currentLang);
+    });
+    // Update html lang attribute
+    document.documentElement.lang = currentLang;
+}
+
+function setLanguage(lang) {
+    if (!I18N[lang]) return;
+    currentLang = lang;
+    localStorage.setItem('tc_lang', lang);
+    applyTranslations();
+    // Re-render dynamic views if visible
+    if (document.getElementById('setup-screen')?.classList.contains('active')) {
+        initSetupForm();
+        initPTSetupForm();
+    }
+    if (document.getElementById('count-screen')?.classList.contains('active')) {
+        renderCountingScreen();
+    }
+    if (document.getElementById('pt-count-screen')?.classList.contains('active')) {
+        renderPTCountingScreen();
+    }
+    if (document.getElementById('results-screen')?.classList.contains('active') && currentSession) {
+        showResults(currentSession);
+    }
+    if (document.getElementById('history-screen')?.classList.contains('active')) {
+        showHistory();
+    }
+}
+
 // ===== CONSTANTS =====
 const DEFAULT_VEHICLE_TYPES = [
-    { id: 'car', label: 'Car' },
-    { id: 'lgv', label: 'LGV' },
-    { id: 'hgv', label: 'HGV' },
-    { id: 'bus', label: 'Bus' },
-    { id: 'tram', label: 'Tram' },
-    { id: 'motorcycle', label: 'M/cycle' },
-    { id: 'bicycle', label: 'Bicycle' },
-    { id: 'pedestrian', label: 'Pedestr.' },
-    { id: 'escooter', label: 'E-scoot' },
-    { id: 'taxi', label: 'Taxi' }
+    { id: 'car', labelKey: 'veh_car' },
+    { id: 'lgv', labelKey: 'veh_lgv' },
+    { id: 'hgv', labelKey: 'veh_hgv' },
+    { id: 'bus', labelKey: 'veh_bus' },
+    { id: 'tram', labelKey: 'veh_tram' },
+    { id: 'motorcycle', labelKey: 'veh_motorcycle' },
+    { id: 'bicycle', labelKey: 'veh_bicycle' },
+    { id: 'pedestrian', labelKey: 'veh_pedestrian' },
+    { id: 'escooter', labelKey: 'veh_escooter' },
+    { id: 'taxi', labelKey: 'veh_taxi' }
 ];
 
-const DEFAULT_APPROACHES = ['North', 'East', 'South', 'West'];
+// Helper to get vehicle type label in current language
+function getVehicleLabel(vtId) {
+    const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
+    return vt ? t(vt.labelKey) : vtId;
+}
+
+const DEFAULT_APPROACH_KEYS = ['ap_north', 'ap_east', 'ap_south', 'ap_west'];
 
 const DIRECTION_ARROWS = {
     left: '\u2B05',
@@ -21,13 +339,29 @@ const DIRECTION_ARROWS = {
     uturn: '\u21A9'
 };
 
-const DIRECTION_LABELS = {
+function getDirectionLabel(movement) {
+    const map = { left: 'dir_left', straight: 'dir_straight', right: 'dir_right', uturn: 'dir_uturn', crossing: 'dir_crossing' };
+    return t(map[movement] || movement);
+}
+
+// English labels for CSV/XLSX export — keeps files language-independent
+const DIRECTION_LABELS_EN = {
     left: 'Left Turn',
     straight: 'Straight',
     right: 'Right Turn',
     uturn: 'U-Turn',
     crossing: 'Crossing'
 };
+const VEHICLE_LABELS_EN = {
+    car: 'Car', lgv: 'LGV', hgv: 'HGV', bus: 'Bus', tram: 'Tram',
+    motorcycle: 'M/cycle', bicycle: 'Bicycle', pedestrian: 'Pedestr.',
+    escooter: 'E-scoot', taxi: 'Taxi'
+};
+
+// Backwards-compat object — now returns current-language labels via getter
+const DIRECTION_LABELS = new Proxy({}, {
+    get(_, key) { return getDirectionLabel(key); }
+});
 
 // Vehicle types that are counted per approach (crossing) not by turning movement
 const CROSSING_TYPES = new Set(['pedestrian', 'bicycle', 'escooter']);
@@ -61,6 +395,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
+    applyTranslations();
     initSetupForm();
     initPTSetupForm();
     bindEvents();
@@ -80,10 +415,11 @@ function initSetupForm() {
 
     // Render vehicle type toggles
     const container = $('#vehicle-toggles');
+    container.innerHTML = '';
     DEFAULT_VEHICLE_TYPES.forEach(vt => {
         const label = document.createElement('label');
         label.className = 'toggle';
-        label.innerHTML = `<input type="checkbox" value="${vt.id}" checked><span>${vt.label}</span>`;
+        label.innerHTML = `<input type="checkbox" value="${vt.id}" checked><span>${t(vt.labelKey)}</span>`;
         container.appendChild(label);
     });
 
@@ -99,18 +435,24 @@ function updateApproachInputs() {
     for (let i = 0; i < n; i++) {
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = `Approach ${i + 1} (e.g. ${DEFAULT_APPROACHES[i] || 'Name'})`;
-        input.value = DEFAULT_APPROACHES[i] || '';
+        const defaultName = DEFAULT_APPROACH_KEYS[i] ? t(DEFAULT_APPROACH_KEYS[i]) : '';
+        input.placeholder = `${t('ap_placeholder')} ${i + 1}${defaultName ? ' (' + defaultName + ')' : ''}`;
+        input.value = defaultName;
         input.dataset.index = i;
         container.appendChild(input);
     }
 }
 
 function bindEvents() {
+    // Language switcher
+    $$('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    });
+
     // Mode selector
     $$('.mode-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            $$('.mode-tab').forEach(t => t.classList.remove('active'));
+            $$('.mode-tab').forEach(otherTab => otherTab.classList.remove('active'));
             tab.classList.add('active');
             currentMode = tab.dataset.mode;
             $('#setup-form').style.display = currentMode === 'traffic' ? '' : 'none';
@@ -176,7 +518,7 @@ function bindEvents() {
     $('#btn-share').addEventListener('click', shareData);
     $$('.results-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            $$('.results-tab').forEach(t => t.classList.remove('active'));
+            $$('.results-tab').forEach(otherTab => otherTab.classList.remove('active'));
             tab.classList.add('active');
             renderResults(tab.dataset.view);
         });
@@ -210,14 +552,14 @@ function startSession() {
     // Gather active movements
     const movements = Array.from($$('#movement-toggles input:checked')).map(cb => cb.value);
     if (movements.length === 0) {
-        alert('Please select at least one turning movement.');
+        alert(t('alert_no_movements'));
         return;
     }
 
     // Gather active vehicle types
     const vehicleTypes = Array.from($$('#vehicle-toggles input:checked')).map(cb => cb.value);
     if (vehicleTypes.length === 0) {
-        alert('Please select at least one vehicle type.');
+        alert(t('alert_no_vehicles'));
         return;
     }
 
@@ -391,10 +733,10 @@ function togglePause() {
     const btns = currentSession?.mode === 'pt' ? [$('#btn-pt-pause')] : [$('#btn-pause')];
     btns.forEach(btn => {
         if (isPaused) {
-            btn.textContent = '\u25B6 Resume';
+            btn.textContent = '\u25B6 ' + t('resume');
             btn.classList.add('paused');
         } else {
-            btn.textContent = '\u23F8 Pause';
+            btn.textContent = '\u23F8 ' + t('pause');
             btn.classList.remove('paused');
         }
     });
@@ -477,7 +819,7 @@ function renderDirectionSection(container, approach, movement, vehicleTypeIds, i
         const btn = document.createElement('button');
         btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
         btn.innerHTML = `
-            <span class="vehicle-label">${vt ? vt.label : vtId}</span>
+            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
             <span class="count-value">${count}</span>
         `;
 
@@ -587,8 +929,8 @@ function showQuickSummary() {
     });
 
     let html = `<div class="summary-grid">`;
-    html += `<div class="summary-card"><div class="label">Current Interval Total</div><div class="value">${grandTotal}</div></div>`;
-    html += `<div class="summary-card"><div class="label">Intervals Done</div><div class="value">${currentSession.intervals.length}</div></div>`;
+    html += `<div class="summary-card"><div class="label">${t('current_interval_total')}</div><div class="value">${grandTotal}</div></div>`;
+    html += `<div class="summary-card"><div class="label">${t('intervals_done')}</div><div class="value">${currentSession.intervals.length}</div></div>`;
 
     currentSession.approaches.forEach(approach => {
         html += `<div class="summary-card"><div class="label">${approach}</div><div class="value">${approachTotals[approach]}</div></div>`;
@@ -606,7 +948,7 @@ function showQuickSummary() {
             }
         });
     });
-    html += `<p style="margin-top:16px;text-align:center;font-size:0.9rem;color:var(--text-secondary)">Session grand total: <strong>${sessionTotal}</strong></p>`;
+    html += `<p style="margin-top:16px;text-align:center;font-size:0.9rem;color:var(--text-secondary)">${t('session_grand_total')}: <strong>${sessionTotal}</strong></p>`;
 
     body.innerHTML = html;
     $('#summary-modal').classList.add('active');
@@ -614,7 +956,7 @@ function showQuickSummary() {
 
 // ===== END SESSION =====
 function endSession() {
-    if (!confirm('End this counting session?')) return;
+    if (!confirm(t('confirm_end'))) return;
 
     if (timerInterval) clearInterval(timerInterval);
     releaseWakeLock();
@@ -665,7 +1007,7 @@ function showHistory() {
     $('.history-actions').style.display = mergeMode ? 'none' : '';
 
     if (sessions.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No saved sessions yet.</p></div>';
+        container.innerHTML = `<div class="empty-state"><p>${t('empty_history')}</p></div>`;
         $('.history-actions').style.display = 'none';
     } else {
         container.innerHTML = sessions.map(s => {
@@ -676,7 +1018,7 @@ function showHistory() {
                 ${checkbox}
                 <div class="history-item-info">
                     <h3>${s.mode === 'pt' ? s.stopName : s.siteName}</h3>
-                    <p>${s.mode === 'pt' ? 'PT Passengers' : 'Traffic'} | ${s.date} | ${s.intervals.length} interval(s)</p>
+                    <p>${s.mode === 'pt' ? t('pt_mode_tag') : t('traffic_mode_tag')} | ${s.date} | ${s.intervals.length}</p>
                 </div>
                 <div class="history-item-actions">
                     <button class="btn-delete-session" data-id="${s.id}" title="Delete">&times;</button>
@@ -710,7 +1052,7 @@ function showHistory() {
         container.querySelectorAll('.btn-delete-session').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('Delete this session?')) {
+                if (confirm(t('confirm_delete'))) {
                     deleteSession(btn.dataset.id);
                     showHistory();
                 }
@@ -734,7 +1076,7 @@ function exitMergeMode() {
 }
 
 function updateMergeBar() {
-    $('#merge-count').textContent = `${mergeSelected.size} selected`;
+    $('#merge-count').textContent = t('n_selected', { n: mergeSelected.size });
     $('#btn-merge').disabled = mergeSelected.size < 2;
 }
 
@@ -746,14 +1088,14 @@ function mergeSelectedSessions() {
 
     // Validate: all must be traffic mode
     if (toMerge.some(s => s.mode === 'pt')) {
-        alert('Can only merge traffic counting sessions, not PT passenger sessions.');
+        alert(t('alert_merge_pt'));
         return;
     }
 
     // Validate: same interval length
     const intervalMins = toMerge[0].intervalMinutes;
     if (toMerge.some(s => s.intervalMinutes !== intervalMins)) {
-        alert('Sessions must have the same time interval to merge.');
+        alert(t('alert_merge_interval_import'));
         return;
     }
 
@@ -876,15 +1218,15 @@ function parseTrafficCSV(csvText) {
     const totalIdx = headers.indexOf('Total');
     const vtHeaders = headers.slice(dirIdx + 1, totalIdx);
 
-    // Reverse map labels to IDs
+    // Reverse map labels to IDs (match English export labels)
     const labelToId = {};
-    DEFAULT_VEHICLE_TYPES.forEach(vt => { labelToId[vt.label] = vt.id; });
+    Object.entries(VEHICLE_LABELS_EN).forEach(([id, label]) => { labelToId[label] = id; });
 
     const vtIds = vtHeaders.map(h => labelToId[h] || h.toLowerCase().replace(/[^a-z]/g, ''));
 
-    // Reverse map direction labels
+    // Reverse map direction labels (English)
     const dirLabelToKey = {};
-    for (const [key, label] of Object.entries(DIRECTION_LABELS)) {
+    for (const [key, label] of Object.entries(DIRECTION_LABELS_EN)) {
         dirLabelToKey[label] = key;
     }
 
@@ -1021,11 +1363,11 @@ function parseXLSXToSession(arrayBuffer) {
 
     const vtHeaders = headers.slice(dirIdx + 1, totalIdx);
     const labelToId = {};
-    DEFAULT_VEHICLE_TYPES.forEach(vt => { labelToId[vt.label] = vt.id; });
+    Object.entries(VEHICLE_LABELS_EN).forEach(([id, label]) => { labelToId[label] = id; });
     const vtIds = vtHeaders.map(h => labelToId[h] || h.toLowerCase().replace(/[^a-z]/g, ''));
 
     const dirLabelToKey = {};
-    for (const [key, label] of Object.entries(DIRECTION_LABELS)) {
+    for (const [key, label] of Object.entries(DIRECTION_LABELS_EN)) {
         dirLabelToKey[label] = key;
     }
 
@@ -1098,7 +1440,7 @@ function renderMergeFileList() {
         <div class="merge-file-item">
             <div>
                 <div class="file-name">${f.name}</div>
-                <div class="file-info">${f.session.siteName} | ${f.session.approaches.join(', ')} | ${f.session.intervals.length} intervals</div>
+                <div class="file-info">${f.session.siteName} | ${f.session.approaches.join(', ')} | ${f.session.intervals.length} ${t('intervals_label').toLowerCase()}</div>
             </div>
             <button onclick="removeMergeFile(${i})">&times;</button>
         </div>
@@ -1106,8 +1448,8 @@ function renderMergeFileList() {
 
     $('#btn-merge-files').disabled = mergeFiles.length < 2;
     $('#merge-file-label').textContent = mergeFiles.length > 0
-        ? `${mergeFiles.length} file(s) loaded — tap to add more`
-        : 'Tap to select .xlsx files';
+        ? t('files_loaded', { n: mergeFiles.length })
+        : t('tap_select_files');
 }
 
 function removeMergeFile(index) {
@@ -1123,7 +1465,7 @@ function mergeImportedFiles() {
     // Validate same interval length
     const intMin = sessions[0].intervalMinutes;
     if (sessions.some(s => s.intervalMinutes !== intMin)) {
-        alert('All files must have the same time interval to merge.');
+        alert(t('alert_merge_interval'));
         return;
     }
 
@@ -1205,17 +1547,17 @@ function showResults(session) {
     if (session.mode === 'pt') {
         info.innerHTML = `
             <div class="site-title">${session.stopName}</div>
-            <p>Mode: PT Passenger Counting</p>
-            <p>Date: ${session.date}</p>
-            <p>Intervals: ${session.intervals.length} x ${session.intervalMinutes} min</p>
-            <p>Lines: ${session.lines.join(', ')}</p>
+            <p>${t('mode_label')}: ${t('mode_pt_full')}</p>
+            <p>${t('date')}: ${session.date}</p>
+            <p>${t('intervals_label')}: ${session.intervals.length} x ${session.intervalMinutes} min</p>
+            <p>${t('lines_label')}: ${session.lines.join(', ')}</p>
         `;
     } else {
         info.innerHTML = `
             <div class="site-title">${session.siteName}</div>
-            <p>Date: ${session.date}</p>
-            <p>Intervals: ${session.intervals.length} x ${session.intervalMinutes} min</p>
-            <p>Approaches: ${session.approaches.join(', ')}</p>
+            <p>${t('date')}: ${session.date}</p>
+            <p>${t('intervals_label')}: ${session.intervals.length} x ${session.intervalMinutes} min</p>
+            <p>${t('approaches_label')}: ${session.approaches.join(', ')}</p>
         `;
     }
 
@@ -1232,7 +1574,7 @@ function showResults(session) {
     }
 
     // Reset to summary tab
-    $$('.results-tab').forEach(t => t.classList.remove('active'));
+    $$('.results-tab').forEach(tb => tb.classList.remove('active'));
     $('.results-tab[data-view="summary"]').classList.add('active');
 
     renderResults('summary');
@@ -1278,15 +1620,12 @@ function getVehicleTypesForMovement(session, movement) {
 }
 
 function renderSummaryTable(container, session) {
-    const vtHeaders = session.vehicleTypes.map(vt => {
-        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
-        return v ? v.label : vt;
-    });
+    const vtHeaders = session.vehicleTypes.map(vt => getVehicleLabel(vt));
 
     let html = `<table class="results-table"><thead><tr>
-        <th>Approach</th><th>Direction</th>
+        <th>${t('approach')}</th><th>${t('direction')}</th>
         ${vtHeaders.map(h => `<th>${h}</th>`).join('')}
-        <th>Total</th>
+        <th>${t('total')}</th>
     </tr></thead><tbody>`;
 
     let grandTotals = {};
@@ -1326,7 +1665,7 @@ function renderSummaryTable(container, session) {
     });
 
     html += `<tr class="total-row">
-        <td colspan="2">TOTAL</td>
+        <td colspan="2">${t('total').toUpperCase()}</td>
         ${session.vehicleTypes.map(vt => `<td>${grandTotals[vt]}</td>`).join('')}
         <td>${grandTotal}</td>
     </tr>`;
@@ -1354,17 +1693,14 @@ function renderIntervalTables(container, session) {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
 
-        html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;">Interval ${idx + 1}: ${start} - ${end}</h3>`;
+        html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;">${t('interval_label')} ${idx + 1}: ${start} - ${end}</h3>`;
 
-        const vtHeaders = session.vehicleTypes.map(vt => {
-            const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
-            return v ? v.label : vt;
-        });
+        const vtHeaders = session.vehicleTypes.map(vt => getVehicleLabel(vt));
 
         html += `<table class="results-table"><thead><tr>
-            <th>Approach</th><th>Dir</th>
+            <th>${t('approach')}</th><th>${t('direction')}</th>
             ${vtHeaders.map(h => `<th>${h}</th>`).join('')}
-            <th>Total</th>
+            <th>${t('total')}</th>
         </tr></thead><tbody>`;
 
         session.approaches.forEach(approach => {
@@ -1398,9 +1734,10 @@ function buildCSV(session) {
 }
 
 function buildTrafficCSV(session) {
+    // Always export CSV headers in English for consistency with import/merge
     const vtHeaders = session.vehicleTypes.map(vt => {
-        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
-        return v ? v.label : vt;
+        const enLabel = { car:'Car', lgv:'LGV', hgv:'HGV', bus:'Bus', tram:'Tram', motorcycle:'M/cycle', bicycle:'Bicycle', pedestrian:'Pedestr.', escooter:'E-scoot', taxi:'Taxi' };
+        return enLabel[vt] || vt;
     });
 
     const headers = ['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction',
@@ -1426,7 +1763,7 @@ function buildTrafficCSV(session) {
                     start,
                     end,
                     `"${approach}"`,
-                    DIRECTION_LABELS[movement],
+                    DIRECTION_LABELS_EN[movement] || movement,
                     ...values,
                     total
                 ].join(','));
@@ -1508,13 +1845,13 @@ async function shareData() {
                 const csv = buildCSV(session);
                 const csvFile = new File(['\uFEFF' + csv], getCSVFilename(session), { type: 'text/csv' });
                 if (!await shareFile(csvFile)) {
-                    alert('Sharing is not supported on this browser. Use the download buttons instead.');
+                    alert(t('alert_share_unsupported'));
                 }
             }
         }
     } catch (e) {
         if (e.name !== 'AbortError') {
-            alert('Sharing failed. Try the download buttons instead.');
+            alert(t('alert_share_fail'));
         }
     }
 }
@@ -1526,7 +1863,7 @@ function exportXLSX() {
     if (!session) return;
 
     if (typeof XLSX === 'undefined') {
-        alert('Excel library not loaded. Check your internet connection and try again.');
+        alert(t('alert_excel_missing'));
         return;
     }
 
@@ -1545,10 +1882,8 @@ function exportXLSX() {
 
 function buildTrafficExcelSheets(wb, session) {
     const allMovements = getAllMovements(session);
-    const vtLabels = session.vehicleTypes.map(vt => {
-        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
-        return v ? v.label : vt;
-    });
+    // Use English labels in exports for consistency and re-import support
+    const vtLabels = session.vehicleTypes.map(vt => VEHICLE_LABELS_EN[vt] || vt);
 
     // Sheet 1: Raw Data
     const rawRows = [['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction', ...vtLabels, 'Total']];
@@ -1559,7 +1894,7 @@ function buildTrafficExcelSheets(wb, session) {
             allMovements.forEach(movement => {
                 const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
                 const total = values.reduce((a, b) => a + b, 0);
-                rawRows.push([session.siteName, session.date, start, end, approach, DIRECTION_LABELS[movement], ...values, total]);
+                rawRows.push([session.siteName, session.date, start, end, approach, DIRECTION_LABELS_EN[movement] || movement, ...values, total]);
             });
         });
     });
@@ -1583,7 +1918,7 @@ function buildTrafficExcelSheets(wb, session) {
             const rowTotal = Object.values(totals).reduce((a, b) => a + b, 0);
             grandTotal += rowTotal;
             session.vehicleTypes.forEach(vt => grandTotals[vt] += totals[vt]);
-            const arrow = DIRECTION_LABELS[movement];
+            const arrow = DIRECTION_LABELS_EN[movement] || movement;
             summaryRows.push([approach, arrow, ...session.vehicleTypes.map(vt => totals[vt] || ''), rowTotal]);
         });
     });
@@ -1621,7 +1956,7 @@ function buildTrafficExcelSheets(wb, session) {
             if (rowTotal === 0) return;
 
             // Count row
-            vtRows.push([approach, DIRECTION_LABELS[movement], ...session.vehicleTypes.map(vt => data[approach][movement]?.[vt] || ''), rowTotal]);
+            vtRows.push([approach, DIRECTION_LABELS_EN[movement] || movement, ...session.vehicleTypes.map(vt => data[approach][movement]?.[vt] || ''), rowTotal]);
             // Percentage row
             vtRows.push(['', '% of row', ...session.vehicleTypes.map(vt => {
                 const count = data[approach][movement]?.[vt] || 0;
@@ -1704,9 +2039,9 @@ function buildPTExcelSheets(wb, session) {
     const summaryRows = [['Line', 'Vehicles', 'Boarding', 'Alighting', 'Net Change']];
     let gv = 0, gb = 0, ga = 0;
     for (const line of Object.keys(lineTotals)) {
-        const t = lineTotals[line];
-        gv += t.vehicles; gb += t.boarding; ga += t.alighting;
-        summaryRows.push([line, t.vehicles, t.boarding, t.alighting, t.boarding - t.alighting]);
+        const lt = lineTotals[line];
+        gv += lt.vehicles; gb += lt.boarding; ga += lt.alighting;
+        summaryRows.push([line, lt.vehicles, lt.boarding, lt.alighting, lt.boarding - lt.alighting]);
     }
     summaryRows.push(['TOTAL', gv, gb, ga, gb - ga]);
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
@@ -1738,16 +2073,13 @@ function renderVehicleSplitTable(container, session) {
         }
     });
 
-    const vtHeaders = session.vehicleTypes.map(vt => {
-        const v = DEFAULT_VEHICLE_TYPES.find(x => x.id === vt);
-        return v ? v.label : vt;
-    });
+    const vtHeaders = session.vehicleTypes.map(vt => getVehicleLabel(vt));
 
-    let html = `<h3 style="margin:12px 0 8px;font-size:0.95rem;">Vehicle Type Proportions by Approach &amp; Movement</h3>`;
+    let html = `<h3 style="margin:12px 0 8px;font-size:0.95rem;">${t('traffic_proportions_title')}</h3>`;
     html += `<table class="results-table"><thead><tr>
-        <th>Approach</th><th>Movement</th>
+        <th>${t('approach')}</th><th>${t('movement')}</th>
         ${vtHeaders.map(h => `<th>${h}</th>`).join('')}
-        <th>Total</th>
+        <th>${t('total')}</th>
     </tr></thead><tbody>`;
 
     let grandVt = {};
@@ -1779,7 +2111,7 @@ function renderVehicleSplitTable(container, session) {
     });
 
     // Grand total row
-    html += `<tr class="total-row"><td colspan="2">TOTAL</td>`;
+    html += `<tr class="total-row"><td colspan="2">${t('total').toUpperCase()}</td>`;
     session.vehicleTypes.forEach(vt => {
         const count = grandVt[vt] || 0;
         if (count > 0 && grandTotal > 0) {
@@ -1912,16 +2244,16 @@ function renderAnalysis(container, session) {
 
         // Peak interval
         html += `<div class="analysis-card">
-            <div class="analysis-title">Peak ${session.intervalMinutes}-min</div>
-            <div class="analysis-value">${peak15.total} veh</div>
+            <div class="analysis-title">${t('peak_15')} ${session.intervalMinutes}-min</div>
+            <div class="analysis-value">${peak15.total} ${t('peak_suffix')}</div>
             <div class="analysis-detail">${formatTime(peak15.start)} - ${formatTime(peak15.end)}</div>
         </div>`;
 
         // Peak hour
         if (peakHour) {
             html += `<div class="analysis-card">
-                <div class="analysis-title">Peak Hour</div>
-                <div class="analysis-value">${peakHour.volume} veh</div>
+                <div class="analysis-title">${t('peak_hour')}</div>
+                <div class="analysis-value">${peakHour.volume} ${t('peak_suffix')}</div>
                 <div class="analysis-detail">${formatTime(peakHour.start)} - ${formatTime(peakHour.end)}</div>
             </div>`;
         }
@@ -1931,9 +2263,9 @@ function renderAnalysis(container, session) {
         // PHF
         if (phf !== null) {
             html += `<div class="analysis-card">
-                <div class="analysis-title">Peak Hour Factor (PHF)</div>
+                <div class="analysis-title">${t('phf')}</div>
                 <div class="analysis-value">${phf.toFixed(3)}</div>
-                <div class="analysis-detail">1.0 = uniform flow, 0.25 = all traffic in one 15-min period</div>
+                <div class="analysis-detail">${t('phf_detail')}</div>
             </div>`;
         }
     }
@@ -1942,7 +2274,7 @@ function renderAnalysis(container, session) {
     const split = calculateDirectionalSplit(session);
     if (split.grandTotal > 0) {
         html += `<div class="analysis-card">
-            <div class="analysis-title">Directional Split</div>
+            <div class="analysis-title">${t('directional_split')}</div>
             <div class="split-grid">`;
 
         session.approaches.forEach(approach => {
@@ -1998,15 +2330,14 @@ function renderAnalysis(container, session) {
             if (activeTypes.length === 0) return;
 
             html += `<div class="analysis-card">
-                <div class="analysis-title">${approach} — Vehicle Type Split (${approachTotal} total)</div>
+                <div class="analysis-title">${approach} — ${t('vehicle_type_split')} (${approachTotal} ${t('total').toLowerCase()})</div>
                 <div class="split-grid">`;
 
             activeTypes.forEach(vtId => {
-                const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
                 const total = vtByApproach[approach][vtId];
                 const pct = ((total / approachTotal) * 100).toFixed(1);
                 html += `<div class="split-card">
-                    <div class="split-label">${vt ? vt.label : vtId}</div>
+                    <div class="split-label">${getVehicleLabel(vtId)}</div>
                     <div class="split-value">${total} <span class="split-pct">(${pct}%)</span></div>
                 </div>`;
             });
@@ -2225,7 +2556,7 @@ function renderPTLines() {
 
 function startPTSession() {
     if (ptLines.length === 0) {
-        alert('Please add at least one line.');
+        alert(t('alert_no_lines'));
         return;
     }
 
@@ -2311,7 +2642,7 @@ function renderPTCountingScreen() {
         const numMode = ptUseNumberInput ? '' : 'none';
         $('.pt-count-buttons').style.display = tapMode ? 'none' : 'grid';
         $('#pt-number-input').style.display = numMode ? 'none' : 'grid';
-        $('#btn-toggle-input').textContent = ptUseNumberInput ? 'Switch to tap counting' : 'Switch to number entry';
+        $('#btn-toggle-input').textContent = ptUseNumberInput ? t('switch_tap_counting') : t('switch_number_entry');
     } else {
         $('#pt-line-selector').style.display = '';
         $('#pt-counter').style.display = 'none';
@@ -2364,7 +2695,7 @@ function ptToggleInputMode() {
         $('#alighting-count').textContent = ptCurrentVehicle.alighting;
     }
 
-    $('#btn-toggle-input').textContent = ptUseNumberInput ? 'Switch to tap counting' : 'Switch to number entry';
+    $('#btn-toggle-input').textContent = ptUseNumberInput ? t('switch_tap_counting') : t('switch_number_entry');
 }
 
 function ptFinishVehicle() {
@@ -2426,7 +2757,7 @@ function renderPTVehicleLog() {
     const container = $('#pt-log-entries');
     const interval = getCurrentInterval();
     if (!interval || !interval.vehicles) {
-        container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;padding:16px;">No vehicles counted yet</p>';
+        container.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;padding:16px;">${t('no_vehicles_counted')}</p>`;
         return;
     }
 
@@ -2469,10 +2800,10 @@ function showPTQuickSummary() {
     }
 
     let html = `<div class="summary-grid">
-        <div class="summary-card"><div class="label">Vehicles</div><div class="value">${vehicleCount}</div></div>
-        <div class="summary-card"><div class="label">Intervals</div><div class="value">${currentSession.intervals.length}</div></div>
-        <div class="summary-card"><div class="label">Boarding</div><div class="value" style="color:#188038">${totalBoarding}</div></div>
-        <div class="summary-card"><div class="label">Alighting</div><div class="value" style="color:#d93025">${totalAlighting}</div></div>
+        <div class="summary-card"><div class="label">${t('vehicles_count')}</div><div class="value">${vehicleCount}</div></div>
+        <div class="summary-card"><div class="label">${t('intervals_label')}</div><div class="value">${currentSession.intervals.length}</div></div>
+        <div class="summary-card"><div class="label">${t('boarding_cap')}</div><div class="value" style="color:#188038">${totalBoarding}</div></div>
+        <div class="summary-card"><div class="label">${t('alighting_cap')}</div><div class="value" style="color:#d93025">${totalAlighting}</div></div>
     </div>`;
 
     // Session totals
@@ -2488,9 +2819,9 @@ function showPTQuickSummary() {
     });
 
     html += `<p style="margin-top:16px;text-align:center;font-size:0.9rem;color:var(--text-secondary)">
-        Session: <strong>${sessionVehicles}</strong> vehicles,
-        <strong style="color:#188038">+${sessionBoarding}</strong> boarding,
-        <strong style="color:#d93025">-${sessionAlighting}</strong> alighting
+        ${t('session_totals')}: <strong>${sessionVehicles}</strong> ${t('vehicles_count').toLowerCase()},
+        <strong style="color:#188038">+${sessionBoarding}</strong> ${t('boarding_cap').toLowerCase()},
+        <strong style="color:#d93025">-${sessionAlighting}</strong> ${t('alighting_cap').toLowerCase()}
     </p>`;
 
     body.innerHTML = html;
@@ -2516,28 +2847,28 @@ function renderPTSummaryTable(container, session) {
     let grandVehicles = 0, grandBoarding = 0, grandAlighting = 0;
 
     let html = `<table class="results-table"><thead><tr>
-        <th>Line</th><th>Vehicles</th><th>Boarding</th><th>Alighting</th><th>Net</th>
+        <th>${t('line')}</th><th>${t('vehicles')}</th><th>${t('boarding_cap')}</th><th>${t('alighting_cap')}</th><th>${t('net_change')}</th>
     </tr></thead><tbody>`;
 
     for (const line of Object.keys(lineTotals)) {
-        const t = lineTotals[line];
-        const net = t.boarding - t.alighting;
-        grandVehicles += t.vehicles;
-        grandBoarding += t.boarding;
-        grandAlighting += t.alighting;
+        const lt = lineTotals[line];
+        const net = lt.boarding - lt.alighting;
+        grandVehicles += lt.vehicles;
+        grandBoarding += lt.boarding;
+        grandAlighting += lt.alighting;
 
         html += `<tr>
             <td><strong>${line}</strong></td>
-            <td>${t.vehicles}</td>
-            <td style="color:#188038">${t.boarding}</td>
-            <td style="color:#d93025">${t.alighting}</td>
+            <td>${lt.vehicles}</td>
+            <td style="color:#188038">${lt.boarding}</td>
+            <td style="color:#d93025">${lt.alighting}</td>
             <td>${net >= 0 ? '+' : ''}${net}</td>
         </tr>`;
     }
 
     const grandNet = grandBoarding - grandAlighting;
     html += `<tr class="total-row">
-        <td>TOTAL</td>
+        <td>${t('total').toUpperCase()}</td>
         <td>${grandVehicles}</td>
         <td>${grandBoarding}</td>
         <td>${grandAlighting}</td>
@@ -2555,15 +2886,15 @@ function renderPTIntervalTables(container, session) {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
 
-        html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;">Interval ${idx + 1}: ${start} - ${end}</h3>`;
+        html += `<h3 style="margin:16px 0 8px;font-size:0.95rem;">${t('interval_label')} ${idx + 1}: ${start} - ${end}</h3>`;
 
         if (!interval.vehicles || interval.vehicles.length === 0) {
-            html += `<p style="color:var(--text-secondary);font-size:0.85rem;">No vehicles counted</p>`;
+            html += `<p style="color:var(--text-secondary);font-size:0.85rem;">${t('no_vehicles_interval')}</p>`;
             return;
         }
 
         html += `<table class="results-table"><thead><tr>
-            <th>Time</th><th>Line</th><th>Boarding</th><th>Alighting</th>
+            <th>${t('start_time').replace(/\s.*/, '')}</th><th>${t('line')}</th><th>${t('boarding_cap')}</th><th>${t('alighting_cap')}</th>
         </tr></thead><tbody>`;
 
         let intBoarding = 0, intAlighting = 0;
@@ -2582,7 +2913,7 @@ function renderPTIntervalTables(container, session) {
         });
 
         html += `<tr class="total-row">
-            <td colspan="2">Subtotal</td>
+            <td colspan="2">${t('subtotal')}</td>
             <td>${intBoarding}</td>
             <td>${intAlighting}</td>
         </tr>`;

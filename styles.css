@@ -93,6 +93,36 @@ body {
 .header-actions {
     display: flex;
     gap: 4px;
+    align-items: center;
+}
+
+.lang-switcher {
+    display: flex;
+    gap: 2px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 2px;
+}
+
+.lang-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    padding: 4px 8px;
+    border-radius: 16px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s, background 0.15s;
+    line-height: 1;
+}
+
+.lang-btn.active {
+    opacity: 1;
+    background: rgba(255,255,255,0.25);
+}
+
+.lang-btn:active {
+    transform: scale(0.92);
 }
 
 /* ===== SETUP FORM ===== */

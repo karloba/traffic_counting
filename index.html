@@ -13,36 +13,42 @@
     <!-- SCREEN 1: Session Setup -->
     <div id="setup-screen" class="screen active">
         <header class="app-header">
-            <h1>Traffic Counter</h1>
-            <button id="btn-history" class="btn-icon" title="Session History">&#128203;</button>
+            <h1 data-i18n="app_title">Traffic Counter</h1>
+            <div class="header-actions">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en" title="English">&#127468;&#127463;</button>
+                    <button class="lang-btn" data-lang="hr" title="Hrvatski">&#127469;&#127479;</button>
+                </div>
+                <button id="btn-history" class="btn-icon" data-i18n-title="session_history" title="Session History">&#128203;</button>
+            </div>
         </header>
 
         <div class="mode-selector">
-            <button class="mode-tab active" data-mode="traffic">Traffic Counting</button>
-            <button class="mode-tab" data-mode="pt">PT Passengers</button>
-            <button class="mode-tab" data-mode="merge">Merge Files</button>
+            <button class="mode-tab active" data-mode="traffic" data-i18n="mode_traffic">Traffic Counting</button>
+            <button class="mode-tab" data-mode="pt" data-i18n="mode_pt">PT Passengers</button>
+            <button class="mode-tab" data-mode="merge" data-i18n="mode_merge">Merge Files</button>
         </div>
 
         <!-- Traffic Counting Setup -->
-        <p class="hint-text" id="traffic-hint">Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.</p>
+        <p class="hint-text" id="traffic-hint" data-i18n="traffic_hint">Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.</p>
         <form id="setup-form" class="setup-form">
             <div class="form-group">
-                <label for="site-name">Site Name</label>
-                <input type="text" id="site-name" placeholder="e.g. Main St & 2nd Ave" required>
+                <label for="site-name" data-i18n="site_name">Site Name</label>
+                <input type="text" id="site-name" data-i18n-placeholder="site_name_ph" placeholder="e.g. Main St & 2nd Ave" required>
             </div>
 
             <div class="form-group">
-                <label for="count-date">Date</label>
+                <label for="count-date" data-i18n="date">Date</label>
                 <input type="date" id="count-date">
             </div>
 
             <div class="form-group">
-                <label for="start-time">Start Time</label>
+                <label for="start-time" data-i18n="start_time">Start Time</label>
                 <input type="time" id="start-time">
             </div>
 
             <div class="form-group">
-                <label for="num-approaches">Number of Approaches</label>
+                <label for="num-approaches" data-i18n="num_approaches">Number of Approaches</label>
                 <select id="num-approaches">
                     <option value="2">2</option>
                     <option value="3">3</option>
@@ -51,22 +57,22 @@
             </div>
 
             <div id="approach-names" class="form-group">
-                <label>Approach Names</label>
+                <label data-i18n="approach_names">Approach Names</label>
                 <div id="approach-inputs"></div>
             </div>
 
             <div class="form-group">
-                <label>Turning Movements</label>
+                <label data-i18n="turning_movements">Turning Movements</label>
                 <div id="movement-toggles" class="toggle-group">
-                    <label class="toggle"><input type="checkbox" value="left" checked><span>Left</span></label>
-                    <label class="toggle"><input type="checkbox" value="straight" checked><span>Straight</span></label>
-                    <label class="toggle"><input type="checkbox" value="right" checked><span>Right</span></label>
-                    <label class="toggle"><input type="checkbox" value="uturn"><span>U-turn</span></label>
+                    <label class="toggle"><input type="checkbox" value="left" checked><span data-i18n="mv_left">Left</span></label>
+                    <label class="toggle"><input type="checkbox" value="straight" checked><span data-i18n="mv_straight">Straight</span></label>
+                    <label class="toggle"><input type="checkbox" value="right" checked><span data-i18n="mv_right">Right</span></label>
+                    <label class="toggle"><input type="checkbox" value="uturn"><span data-i18n="mv_uturn">U-turn</span></label>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="interval-minutes">Time Interval (minutes)</label>
+                <label for="interval-minutes" data-i18n="time_interval">Time Interval (minutes)</label>
                 <select id="interval-minutes">
                     <option value="5">5</option>
                     <option value="10">10</option>
@@ -77,35 +83,35 @@
             </div>
 
             <div class="form-group">
-                <label>Vehicle Types</label>
+                <label data-i18n="vehicle_types">Vehicle Types</label>
                 <div id="vehicle-toggles" class="toggle-group"></div>
             </div>
 
-            <label class="toggle-inline"><input type="checkbox" id="sound-alert" checked> Sound alert on interval change</label>
+            <label class="toggle-inline"><input type="checkbox" id="sound-alert" checked> <span data-i18n="sound_alert">Sound alert on interval change</span></label>
 
-            <button type="submit" class="btn-primary btn-large">Start Counting</button>
+            <button type="submit" class="btn-primary btn-large" data-i18n="start_counting">Start Counting</button>
         </form>
 
         <!-- PT Passenger Setup -->
-        <p class="hint-text" id="pt-hint" style="display:none">Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.</p>
+        <p class="hint-text" id="pt-hint" style="display:none" data-i18n="pt_hint">Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.</p>
         <form id="pt-setup-form" class="setup-form" style="display:none">
             <div class="form-group">
-                <label for="pt-stop-name">Stop Name</label>
-                <input type="text" id="pt-stop-name" placeholder="e.g. Glavni kolodvor" required>
+                <label for="pt-stop-name" data-i18n="stop_name">Stop Name</label>
+                <input type="text" id="pt-stop-name" data-i18n-placeholder="stop_name_ph" placeholder="e.g. Glavni kolodvor" required>
             </div>
 
             <div class="form-group">
-                <label for="pt-date">Date</label>
+                <label for="pt-date" data-i18n="date">Date</label>
                 <input type="date" id="pt-date">
             </div>
 
             <div class="form-group">
-                <label for="pt-start-time">Start Time</label>
+                <label for="pt-start-time" data-i18n="start_time">Start Time</label>
                 <input type="time" id="pt-start-time">
             </div>
 
             <div class="form-group">
-                <label for="pt-interval">Time Interval (minutes)</label>
+                <label for="pt-interval" data-i18n="time_interval">Time Interval (minutes)</label>
                 <select id="pt-interval">
                     <option value="5">5</option>
                     <option value="10">10</option>
@@ -116,37 +122,37 @@
             </div>
 
             <div class="form-group">
-                <label>Lines at this stop</label>
+                <label data-i18n="lines_at_stop">Lines at this stop</label>
                 <div id="pt-lines-list" class="pt-lines-list"></div>
                 <div class="pt-line-add">
-                    <input type="text" id="pt-line-input" placeholder="e.g. Tram 6, Bus 268">
-                    <button type="button" id="btn-add-line" class="btn-primary">Add</button>
+                    <input type="text" id="pt-line-input" data-i18n-placeholder="line_ph" placeholder="e.g. Tram 6, Bus 268">
+                    <button type="button" id="btn-add-line" class="btn-primary" data-i18n="add">Add</button>
                 </div>
             </div>
 
-            <label class="toggle-inline"><input type="checkbox" id="pt-sound-alert" checked> Sound alert on interval change</label>
+            <label class="toggle-inline"><input type="checkbox" id="pt-sound-alert" checked> <span data-i18n="sound_alert">Sound alert on interval change</span></label>
 
-            <button type="submit" class="btn-primary btn-large">Start Counting</button>
+            <button type="submit" class="btn-primary btn-large" data-i18n="start_counting">Start Counting</button>
         </form>
 
         <!-- Merge Files -->
         <div id="merge-form" class="setup-form" style="display:none">
-            <p class="hint-text" style="padding:0 0 8px">Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.</p>
+            <p class="hint-text" style="padding:0 0 8px" data-i18n="merge_hint">Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.</p>
 
             <div class="form-group">
-                <label>Select Excel files to merge</label>
+                <label data-i18n="select_files">Select Excel files to merge</label>
                 <label class="file-drop-area" id="merge-drop-area">
-                    <span id="merge-file-label">Tap to select .xlsx files</span>
+                    <span id="merge-file-label" data-i18n="tap_select_files">Tap to select .xlsx files</span>
                     <input type="file" id="merge-file-input" accept=".xlsx,.csv" multiple>
                 </label>
             </div>
 
             <div id="merge-file-list" class="merge-file-list"></div>
 
-            <button type="button" id="btn-merge-files" class="btn-primary btn-large" disabled>Merge &amp; View Results</button>
+            <button type="button" id="btn-merge-files" class="btn-primary btn-large" disabled data-i18n="merge_view">Merge &amp; View Results</button>
         </div>
 
-        <footer class="app-footer">Made by: Karlo Babojeli&#263;, University of Zagreb Faculty of Transport and Traffic Sciences</footer>
+        <footer class="app-footer" data-i18n="credit">Made by: Karlo Babojeli&#263;, University of Zagreb Faculty of Transport and Traffic Sciences</footer>
     </div>
 
     <!-- SCREEN 2: Counting Interface -->
@@ -159,17 +165,17 @@
             <div class="progress-bar"><div id="progress-fill"></div></div>
         </div>
 
-        <p class="hint-text-counting">Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.</p>
+        <p class="hint-text-counting" data-i18n="counting_hint">Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.</p>
 
         <div id="approach-tabs" class="approach-tabs"></div>
 
         <div id="count-grid" class="count-grid"></div>
 
         <div class="count-footer">
-            <button id="btn-undo" class="btn-footer" title="Undo last">&#8630; Undo</button>
-            <button id="btn-pause" class="btn-footer" title="Pause">&#9646;&#9646; Pause</button>
-            <button id="btn-summary" class="btn-footer" title="Quick summary">&#931; Summary</button>
-            <button id="btn-end" class="btn-footer btn-danger" title="End session">&#9632; End</button>
+            <button id="btn-undo" class="btn-footer" title="Undo last">&#8630; <span data-i18n="undo">Undo</span></button>
+            <button id="btn-pause" class="btn-footer" title="Pause">&#9646;&#9646; <span data-i18n="pause">Pause</span></button>
+            <button id="btn-summary" class="btn-footer" title="Quick summary">&#931; <span data-i18n="summary">Summary</span></button>
+            <button id="btn-end" class="btn-footer btn-danger" title="End session">&#9632; <span data-i18n="end">End</span></button>
         </div>
     </div>
 
@@ -185,11 +191,11 @@
 
         <div id="pt-stop-label" class="pt-stop-label"></div>
 
-        <p class="hint-text-counting">Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.</p>
+        <p class="hint-text-counting" data-i18n="pt_counting_hint">Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.</p>
 
         <!-- Line selector (shown when no vehicle is being counted) -->
         <div id="pt-line-selector" class="pt-line-selector">
-            <p class="pt-prompt">Select arriving line:</p>
+            <p class="pt-prompt" data-i18n="select_arriving_line">Select arriving line:</p>
             <div id="pt-line-buttons" class="pt-line-buttons"></div>
         </div>
 
@@ -202,46 +208,46 @@
             <div class="pt-count-buttons">
                 <div class="pt-count-col">
                     <button id="btn-boarding" class="pt-big-btn boarding">
-                        <span class="pt-btn-label">BOARDING</span>
+                        <span class="pt-btn-label" data-i18n="boarding">BOARDING</span>
                         <span id="boarding-count" class="pt-btn-count">0</span>
                     </button>
                     <button id="btn-boarding-minus" class="pt-minus-btn">-1</button>
                 </div>
                 <div class="pt-count-col">
                     <button id="btn-alighting" class="pt-big-btn alighting">
-                        <span class="pt-btn-label">ALIGHTING</span>
+                        <span class="pt-btn-label" data-i18n="alighting">ALIGHTING</span>
                         <span id="alighting-count" class="pt-btn-count">0</span>
                     </button>
                     <button id="btn-alighting-minus" class="pt-minus-btn">-1</button>
                 </div>
             </div>
             <div class="pt-input-toggle">
-                <button id="btn-toggle-input" class="btn-small">Switch to number entry</button>
+                <button id="btn-toggle-input" class="btn-small" data-i18n="switch_number_entry">Switch to number entry</button>
             </div>
             <div id="pt-number-input" class="pt-number-input" style="display:none">
                 <div class="pt-num-field">
-                    <label>Boarding</label>
+                    <label data-i18n="boarding_cap">Boarding</label>
                     <input type="number" id="pt-boarding-num" min="0" value="0" inputmode="numeric">
                 </div>
                 <div class="pt-num-field">
-                    <label>Alighting</label>
+                    <label data-i18n="alighting_cap">Alighting</label>
                     <input type="number" id="pt-alighting-num" min="0" value="0" inputmode="numeric">
                 </div>
             </div>
-            <button id="btn-pt-done" class="btn-primary btn-large">Done</button>
+            <button id="btn-pt-done" class="btn-primary btn-large" data-i18n="done">Done</button>
         </div>
 
         <!-- Vehicle log -->
         <div id="pt-vehicle-log" class="pt-vehicle-log">
-            <h3 class="pt-log-title">Vehicle Log</h3>
+            <h3 class="pt-log-title" data-i18n="vehicle_log">Vehicle Log</h3>
             <div id="pt-log-entries"></div>
         </div>
 
         <div class="count-footer">
-            <button id="btn-pt-undo" class="btn-footer" title="Undo last">&#8630; Undo</button>
-            <button id="btn-pt-pause" class="btn-footer" title="Pause">&#9646;&#9646; Pause</button>
-            <button id="btn-pt-summary" class="btn-footer" title="Quick summary">&#931; Summary</button>
-            <button id="btn-pt-end" class="btn-footer btn-danger" title="End session">&#9632; End</button>
+            <button id="btn-pt-undo" class="btn-footer" title="Undo last">&#8630; <span data-i18n="undo">Undo</span></button>
+            <button id="btn-pt-pause" class="btn-footer" title="Pause">&#9646;&#9646; <span data-i18n="pause">Pause</span></button>
+            <button id="btn-pt-summary" class="btn-footer" title="Quick summary">&#931; <span data-i18n="summary">Summary</span></button>
+            <button id="btn-pt-end" class="btn-footer btn-danger" title="End session">&#9632; <span data-i18n="end">End</span></button>
         </div>
     </div>
 
@@ -249,7 +255,7 @@
     <div id="results-screen" class="screen">
         <header class="app-header">
             <button id="btn-back-setup" class="btn-icon" title="New session">&#8592;</button>
-            <h1>Results</h1>
+            <h1 data-i18n="results">Results</h1>
             <div class="header-actions">
                 <button id="btn-share" class="btn-icon" title="Share">&#128228;</button>
                 <button id="btn-export-xlsx" class="btn-icon" title="Export Excel" style="font-size:1rem;font-weight:700;">.xlsx</button>
@@ -260,10 +266,10 @@
         <div id="results-info" class="results-info"></div>
         <div id="results-analysis" class="results-analysis"></div>
         <div id="results-tabs" class="results-view-tabs">
-            <button class="results-tab active" data-view="summary">Summary</button>
-            <button class="results-tab" data-view="vehicle-split" id="tab-vehicle-split">Vehicle %</button>
-            <button class="results-tab" data-view="intervals">By Interval</button>
-            <button class="results-tab" data-view="diagram" id="tab-diagram">Diagram</button>
+            <button class="results-tab active" data-view="summary" data-i18n="summary">Summary</button>
+            <button class="results-tab" data-view="vehicle-split" id="tab-vehicle-split" data-i18n="vehicle_pct">Vehicle %</button>
+            <button class="results-tab" data-view="intervals" data-i18n="by_interval">By Interval</button>
+            <button class="results-tab" data-view="diagram" id="tab-diagram" data-i18n="diagram">Diagram</button>
         </div>
         <div id="results-content" class="results-content"></div>
     </div>
@@ -272,18 +278,18 @@
     <div id="history-screen" class="screen">
         <header class="app-header">
             <button id="btn-back-from-history" class="btn-icon">&#8592;</button>
-            <h1>Session History</h1>
+            <h1 data-i18n="session_history">Session History</h1>
             <div class="header-actions">
                 <button id="btn-import-csv" class="btn-icon" title="Import CSV">&#128194;</button>
             </div>
         </header>
         <div class="merge-bar" id="merge-bar" style="display:none">
-            <span id="merge-count">0 selected</span>
-            <button id="btn-merge" class="btn-primary" disabled>Merge Selected</button>
-            <button id="btn-cancel-merge" class="btn-small">Cancel</button>
+            <span id="merge-count" data-i18n-tpl="n_selected">0 selected</span>
+            <button id="btn-merge" class="btn-primary" disabled data-i18n="merge_selected">Merge Selected</button>
+            <button id="btn-cancel-merge" class="btn-small" data-i18n="cancel">Cancel</button>
         </div>
         <div class="history-actions">
-            <button id="btn-select-merge" class="btn-small">Select &amp; Merge</button>
+            <button id="btn-select-merge" class="btn-small" data-i18n="select_and_merge">Select &amp; Merge</button>
         </div>
         <div id="history-list" class="history-list"></div>
         <input type="file" id="csv-file-input" accept=".csv" style="display:none">
@@ -293,7 +299,7 @@
     <div id="summary-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Quick Summary</h2>
+                <h2 data-i18n="quick_summary">Quick Summary</h2>
                 <button id="btn-close-modal" class="btn-icon">&times;</button>
             </div>
             <div id="summary-body"></div>
