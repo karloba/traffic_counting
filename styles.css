@@ -328,6 +328,16 @@ body {
     margin-top: 2px;
 }
 
+.approach-tab.crossings-tab {
+    color: #6a1b9a;
+    border-left: 1px dashed var(--border);
+}
+
+.approach-tab.crossings-tab.active {
+    color: #6a1b9a;
+    border-bottom-color: #6a1b9a;
+}
+
 /* ===== COUNT GRID ===== */
 .count-grid {
     flex: 1;

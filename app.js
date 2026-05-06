@@ -80,6 +80,7 @@ const I18N = {
         dir_right: 'Right Turn',
         dir_uturn: 'U-Turn',
         dir_crossing: 'Crossing',
+        crossings_tab: 'Crossings',
         veh_car: 'Car',
         veh_lgv: 'LGV',
         veh_hgv: 'HGV',
@@ -204,6 +205,7 @@ const I18N = {
         dir_right: 'Skretanje desno',
         dir_uturn: 'Polukružno',
         dir_crossing: 'Prelaženje',
+        crossings_tab: 'Prelasci',
         veh_car: 'Auto',
         veh_lgv: 'LDV',
         veh_hgv: 'TDV',
@@ -765,8 +767,8 @@ function renderApproachTabs() {
         const btn = document.createElement('button');
         btn.className = 'approach-tab' + (i === currentApproachIndex ? ' active' : '');
 
-        // Calculate total for this approach
-        const total = getApproachTotal(approach);
+        // Vehicle-only total for this approach (excludes crossings since they're now separate)
+        const total = getApproachVehicleTotal(approach);
         btn.innerHTML = `${approach}<span class="tab-count">${total}</span>`;
 
         btn.addEventListener('click', () => {
@@ -775,28 +777,126 @@ function renderApproachTabs() {
         });
         container.appendChild(btn);
     });
+
+    // Add the dedicated Crossings tab if any crossing types are active
+    const hasCrossingTypes = currentSession.vehicleTypes.some(vt => CROSSING_TYPES.has(vt));
+    if (hasCrossingTypes) {
+        const crossingsIndex = currentSession.approaches.length;
+        const btn = document.createElement('button');
+        btn.className = 'approach-tab crossings-tab' + (currentApproachIndex === crossingsIndex ? ' active' : '');
+        const total = getCrossingsTotal();
+        const label = '\u{1F6B6} ' + t('crossings_tab');
+        btn.innerHTML = `${label}<span class="tab-count">${total}</span>`;
+        btn.addEventListener('click', () => {
+            currentApproachIndex = crossingsIndex;
+            renderCountingScreen();
+        });
+        container.appendChild(btn);
+    }
 }
 
 function renderCountGrid() {
     const container = $('#count-grid');
     container.innerHTML = '';
-    const approach = currentSession.approaches[currentApproachIndex];
     const interval = getCurrentInterval();
     if (!interval) return;
 
     const motorTypes = currentSession.vehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
     const crossingTypes = currentSession.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
 
-    // Render turning movement sections with motor vehicle types only
-    currentSession.movements.forEach(movement => {
-        if (motorTypes.length === 0) return;
-        renderDirectionSection(container, approach, movement, motorTypes, interval);
+    const isCrossingsTab = currentApproachIndex >= currentSession.approaches.length;
+
+    if (isCrossingsTab) {
+        // Render one section per leg, each containing pedestrian/bicycle/e-scooter buttons
+        if (crossingTypes.length === 0) return;
+        currentSession.approaches.forEach(approach => {
+            if (!interval.counts[approach]) interval.counts[approach] = {};
+            if (!interval.counts[approach]['crossing']) {
+                interval.counts[approach]['crossing'] = {};
+                crossingTypes.forEach(vt => { interval.counts[approach]['crossing'][vt] = 0; });
+            }
+            renderCrossingLegSection(container, approach, crossingTypes, interval);
+        });
+    } else {
+        // Regular approach tab — only motor vehicle turning movements
+        const approach = currentSession.approaches[currentApproachIndex];
+        currentSession.movements.forEach(movement => {
+            if (motorTypes.length === 0) return;
+            renderDirectionSection(container, approach, movement, motorTypes, interval);
+        });
+    }
+}
+
+// Render a leg-specific crossing section (used inside the Crossings tab)
+function renderCrossingLegSection(container, approach, vehicleTypeIds, interval) {
+    const section = document.createElement('div');
+    section.className = 'direction-section';
+
+    const header = document.createElement('div');
+    header.className = `direction-header crossing`;
+    header.innerHTML = `<span class="arrow">\u{1F6B6}</span> ${approach} — ${t('dir_crossing')}`;
+    section.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'vehicle-buttons';
+
+    vehicleTypeIds.forEach(vtId => {
+        const count = interval.counts[approach]['crossing'][vtId] || 0;
+        const btn = document.createElement('button');
+        btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
+        btn.innerHTML = `
+            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
+            <span class="count-value">${count}</span>
+        `;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            incrementCount(approach, 'crossing', vtId);
+            btn.classList.add('flash');
+            setTimeout(() => btn.classList.remove('flash'), 150);
+        });
+        let longPressTimer;
+        btn.addEventListener('touchstart', () => {
+            longPressTimer = setTimeout(() => decrementCount(approach, 'crossing', vtId), 500);
+        }, { passive: true });
+        btn.addEventListener('touchend', () => clearTimeout(longPressTimer));
+        btn.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+        grid.appendChild(btn);
     });
 
-    // Render crossing section for pedestrians, bicycles, e-scooters
-    if (crossingTypes.length > 0 && interval.counts[approach]['crossing']) {
-        renderDirectionSection(container, approach, 'crossing', crossingTypes, interval);
+    section.appendChild(grid);
+    container.appendChild(section);
+}
+
+// Vehicle-only total per approach (excludes crossings)
+function getApproachVehicleTotal(approach) {
+    const interval = getCurrentInterval();
+    if (!interval) return 0;
+    let total = 0;
+    const ac = interval.counts[approach];
+    if (!ac) return 0;
+    for (const movement of Object.keys(ac)) {
+        if (movement === 'crossing') continue;
+        for (const vt of Object.keys(ac[movement])) {
+            total += ac[movement][vt];
+        }
     }
+    return total;
+}
+
+// Total of all crossings across all legs (for the Crossings tab badge)
+function getCrossingsTotal() {
+    const interval = getCurrentInterval();
+    if (!interval) return 0;
+    let total = 0;
+    currentSession.approaches.forEach(approach => {
+        const ac = interval.counts[approach];
+        if (!ac || !ac.crossing) return;
+        for (const vt of Object.keys(ac.crossing)) {
+            total += ac.crossing[vt];
+        }
+    });
+    return total;
 }
 
 function renderDirectionSection(container, approach, movement, vehicleTypeIds, interval) {
