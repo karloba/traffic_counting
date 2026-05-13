@@ -81,6 +81,8 @@ const I18N = {
         dir_uturn: 'U-Turn',
         dir_crossing: 'Crossing',
         crossings_tab: 'Crossings',
+        reset: 'Reset',
+        confirm_reset_section: 'Reset all counts in this section to 0?',
         veh_car: 'Car',
         veh_lgv: 'LGV',
         veh_hgv: 'HGV',
@@ -206,6 +208,8 @@ const I18N = {
         dir_uturn: 'Polukružno',
         dir_crossing: 'Prelaženje',
         crossings_tab: 'Prelasci',
+        reset: 'Obriši',
+        confirm_reset_section: 'Resetirati sve brojeve u ovom odjeljku na 0?',
         veh_car: 'Auto',
         veh_lgv: 'LDV',
         veh_hgv: 'TDV',
@@ -624,11 +628,11 @@ function startNewInterval() {
                 counts[approach][movement][vt] = 0;
             });
         });
-        // Crossing types get their own "crossing" movement
+        // Crossings split into 2 perpendicular directions
         if (crossingTypes.length > 0) {
-            counts[approach]['crossing'] = {};
-            crossingTypes.forEach(vt => {
-                counts[approach]['crossing'][vt] = 0;
+            ['crossing_a', 'crossing_b'].forEach(key => {
+                counts[approach][key] = {};
+                crossingTypes.forEach(vt => { counts[approach][key][vt] = 0; });
             });
         }
     });
@@ -767,8 +771,7 @@ function renderApproachTabs() {
         const btn = document.createElement('button');
         btn.className = 'approach-tab' + (i === currentApproachIndex ? ' active' : '');
 
-        // Vehicle-only total for this approach (excludes crossings since they're now separate)
-        const total = getApproachVehicleTotal(approach);
+        const total = getApproachTotal(approach);
         btn.innerHTML = `${approach}<span class="tab-count">${total}</span>`;
 
         btn.addEventListener('click', () => {
@@ -777,22 +780,25 @@ function renderApproachTabs() {
         });
         container.appendChild(btn);
     });
+}
 
-    // Add the dedicated Crossings tab if any crossing types are active
-    const hasCrossingTypes = currentSession.vehicleTypes.some(vt => CROSSING_TYPES.has(vt));
-    if (hasCrossingTypes) {
-        const crossingsIndex = currentSession.approaches.length;
-        const btn = document.createElement('button');
-        btn.className = 'approach-tab crossings-tab' + (currentApproachIndex === crossingsIndex ? ' active' : '');
-        const total = getCrossingsTotal();
-        const label = '\u{1F6B6} ' + t('crossings_tab');
-        btn.innerHTML = `${label}<span class="tab-count">${total}</span>`;
-        btn.addEventListener('click', () => {
-            currentApproachIndex = crossingsIndex;
-            renderCountingScreen();
-        });
-        container.appendChild(btn);
+// Returns the two perpendicular approach indices for a 4-leg intersection
+// For other configurations, returns whatever "other" approaches exist
+function getPerpendicularApproaches(approachIndex) {
+    const n = currentSession.approaches.length;
+    if (n === 4) {
+        // Standard: indices 0 and 2 are opposite, 1 and 3 are opposite
+        return [(approachIndex + 1) % 4, (approachIndex + 3) % 4];
     }
+    if (n === 3) {
+        // 3-leg: show the other two approaches
+        return [(approachIndex + 1) % 3, (approachIndex + 2) % 3];
+    }
+    if (n === 2) {
+        // 2-leg: just the other one (single direction crossing)
+        return [(approachIndex + 1) % 2];
+    }
+    return [];
 }
 
 function renderCountGrid() {
@@ -804,44 +810,73 @@ function renderCountGrid() {
     const motorTypes = currentSession.vehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
     const crossingTypes = currentSession.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
 
-    const isCrossingsTab = currentApproachIndex >= currentSession.approaches.length;
+    const approach = currentSession.approaches[currentApproachIndex];
+    if (!interval.counts[approach]) interval.counts[approach] = {};
 
-    if (isCrossingsTab) {
-        // Render one section per leg, each containing pedestrian/bicycle/e-scooter buttons
-        if (crossingTypes.length === 0) return;
-        currentSession.approaches.forEach(approach => {
-            if (!interval.counts[approach]) interval.counts[approach] = {};
-            if (!interval.counts[approach]['crossing']) {
-                interval.counts[approach]['crossing'] = {};
-                crossingTypes.forEach(vt => { interval.counts[approach]['crossing'][vt] = 0; });
+    // Migrate old `crossing` data to `crossing_a` if present
+    if (interval.counts[approach]['crossing'] && !interval.counts[approach]['crossing_a']) {
+        interval.counts[approach]['crossing_a'] = interval.counts[approach]['crossing'];
+        delete interval.counts[approach]['crossing'];
+    }
+
+    // Ensure crossing_a and crossing_b are initialized
+    if (crossingTypes.length > 0) {
+        ['crossing_a', 'crossing_b'].forEach(key => {
+            if (!interval.counts[approach][key]) {
+                interval.counts[approach][key] = {};
+                crossingTypes.forEach(vt => { interval.counts[approach][key][vt] = 0; });
             }
-            renderCrossingLegSection(container, approach, crossingTypes, interval);
         });
-    } else {
-        // Regular approach tab — only motor vehicle turning movements
-        const approach = currentSession.approaches[currentApproachIndex];
-        currentSession.movements.forEach(movement => {
-            if (motorTypes.length === 0) return;
-            renderDirectionSection(container, approach, movement, motorTypes, interval);
+    }
+
+    // Render vehicle turning movements
+    currentSession.movements.forEach(movement => {
+        if (motorTypes.length === 0) return;
+        renderDirectionSection(container, approach, movement, motorTypes, interval);
+    });
+
+    // Render crossing sections per perpendicular direction
+    if (crossingTypes.length > 0) {
+        const perp = getPerpendicularApproaches(currentApproachIndex);
+        const keys = ['crossing_a', 'crossing_b'];
+        perp.forEach((perpIdx, i) => {
+            const dirName = currentSession.approaches[perpIdx];
+            const movementKey = keys[i];
+            renderCrossingDirectionSection(container, approach, movementKey, dirName, crossingTypes, interval);
         });
     }
 }
 
-// Render a leg-specific crossing section (used inside the Crossings tab)
-function renderCrossingLegSection(container, approach, vehicleTypeIds, interval) {
+// Render a crossing section labelled with the destination approach name
+function renderCrossingDirectionSection(container, approach, movementKey, destApproachName, vehicleTypeIds, interval) {
     const section = document.createElement('div');
     section.className = 'direction-section';
 
     const header = document.createElement('div');
     header.className = `direction-header crossing`;
-    header.innerHTML = `<span class="arrow">\u{1F6B6}</span> ${approach} — ${t('dir_crossing')}`;
+    header.innerHTML = `<span class="arrow">\u{1F6B6}</span> ${t('dir_crossing')} → ${destApproachName}`;
+
+    // Reset button
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'section-reset-btn';
+    resetBtn.textContent = t('reset');
+    resetBtn.title = t('reset');
+    resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(t('confirm_reset_section'))) {
+            vehicleTypeIds.forEach(vt => { interval.counts[approach][movementKey][vt] = 0; });
+            saveSession();
+            renderCountingScreen();
+        }
+    });
+    header.appendChild(resetBtn);
     section.appendChild(header);
 
     const grid = document.createElement('div');
     grid.className = 'vehicle-buttons';
 
     vehicleTypeIds.forEach(vtId => {
-        const count = interval.counts[approach]['crossing'][vtId] || 0;
+        const count = interval.counts[approach][movementKey][vtId] || 0;
         const btn = document.createElement('button');
         btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
         btn.innerHTML = `
@@ -850,13 +885,13 @@ function renderCrossingLegSection(container, approach, vehicleTypeIds, interval)
         `;
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            incrementCount(approach, 'crossing', vtId);
+            incrementCount(approach, movementKey, vtId);
             btn.classList.add('flash');
             setTimeout(() => btn.classList.remove('flash'), 150);
         });
         let longPressTimer;
         btn.addEventListener('touchstart', () => {
-            longPressTimer = setTimeout(() => decrementCount(approach, 'crossing', vtId), 500);
+            longPressTimer = setTimeout(() => decrementCount(approach, movementKey, vtId), 500);
         }, { passive: true });
         btn.addEventListener('touchend', () => clearTimeout(longPressTimer));
         btn.addEventListener('touchmove', () => clearTimeout(longPressTimer));
@@ -868,37 +903,6 @@ function renderCrossingLegSection(container, approach, vehicleTypeIds, interval)
     container.appendChild(section);
 }
 
-// Vehicle-only total per approach (excludes crossings)
-function getApproachVehicleTotal(approach) {
-    const interval = getCurrentInterval();
-    if (!interval) return 0;
-    let total = 0;
-    const ac = interval.counts[approach];
-    if (!ac) return 0;
-    for (const movement of Object.keys(ac)) {
-        if (movement === 'crossing') continue;
-        for (const vt of Object.keys(ac[movement])) {
-            total += ac[movement][vt];
-        }
-    }
-    return total;
-}
-
-// Total of all crossings across all legs (for the Crossings tab badge)
-function getCrossingsTotal() {
-    const interval = getCurrentInterval();
-    if (!interval) return 0;
-    let total = 0;
-    currentSession.approaches.forEach(approach => {
-        const ac = interval.counts[approach];
-        if (!ac || !ac.crossing) return;
-        for (const vt of Object.keys(ac.crossing)) {
-            total += ac.crossing[vt];
-        }
-    });
-    return total;
-}
-
 function renderDirectionSection(container, approach, movement, vehicleTypeIds, interval) {
     const section = document.createElement('div');
     section.className = 'direction-section';
@@ -907,6 +911,22 @@ function renderDirectionSection(container, approach, movement, vehicleTypeIds, i
     header.className = `direction-header ${movement}`;
     const arrow = DIRECTION_ARROWS[movement] || '\u{1F6B6}';
     header.innerHTML = `<span class="arrow">${arrow}</span> ${DIRECTION_LABELS[movement]}`;
+
+    // Reset button for the section
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'section-reset-btn';
+    resetBtn.textContent = t('reset');
+    resetBtn.title = t('reset');
+    resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(t('confirm_reset_section'))) {
+            vehicleTypeIds.forEach(vt => { interval.counts[approach][movement][vt] = 0; });
+            saveSession();
+            renderCountingScreen();
+        }
+    });
+    header.appendChild(resetBtn);
+
     section.appendChild(header);
 
     const grid = document.createElement('div');
@@ -1341,10 +1361,40 @@ function parseTrafficCSV(csvText) {
     const siteName = rows[0]?.[siteIdx] || 'Imported';
     const date = rows[0]?.[dateIdx] || new Date().toISOString().split('T')[0];
 
-    // Gather unique approaches, movements, intervals
+    // Gather unique approaches
     const approaches = [...new Set(rows.map(r => r[approachIdx]))];
-    const movementLabels = [...new Set(rows.map(r => r[dirIdx]))];
-    const movements = movementLabels.map(l => dirLabelToKey[l] || l.toLowerCase());
+
+    // Map a label to a movement key, given the approach context (for crossing → X labels)
+    const labelToMovement = (label, approach) => {
+        if (dirLabelToKey[label]) return dirLabelToKey[label];
+        // Crossing direction: "Crossing → North" etc.
+        const m = label.match(/^Crossing\s*[→\->]+\s*(.+)$/i);
+        if (m) {
+            const destName = m[1].trim();
+            const approachIdx = approaches.indexOf(approach);
+            const n = approaches.length;
+            if (approachIdx >= 0 && n >= 2) {
+                let perpA, perpB;
+                if (n === 4) {
+                    perpA = approaches[(approachIdx + 1) % 4];
+                    perpB = approaches[(approachIdx + 3) % 4];
+                } else if (n === 3) {
+                    perpA = approaches[(approachIdx + 1) % 3];
+                    perpB = approaches[(approachIdx + 2) % 3];
+                } else {
+                    perpA = approaches[(approachIdx + 1) % 2];
+                }
+                if (destName === perpA) return 'crossing_a';
+                if (destName === perpB) return 'crossing_b';
+            }
+            return 'crossing_a';
+        }
+        return label.toLowerCase();
+    };
+
+    const movementsSet = new Set();
+    rows.forEach(r => movementsSet.add(labelToMovement(r[dirIdx], r[approachIdx])));
+    const movements = Array.from(movementsSet);
     const intervalKeys = [...new Set(rows.map(r => `${r[startIdx]}|${r[endIdx]}`))];
 
     // Detect interval minutes from first interval
@@ -1369,12 +1419,16 @@ function parseTrafficCSV(csvText) {
 
         rows.filter(r => `${r[startIdx]}|${r[endIdx]}` === key).forEach(r => {
             const approach = r[approachIdx];
-            const movLabel = r[dirIdx];
-            const movement = dirLabelToKey[movLabel] || movLabel.toLowerCase();
+            const movement = labelToMovement(r[dirIdx], approach);
+            // Ensure target exists (for crossings, vehicle types must be crossing types)
+            if (!counts[approach][movement]) {
+                counts[approach][movement] = {};
+                vtIds.forEach(vt => { counts[approach][movement][vt] = 0; });
+            }
 
             vtIds.forEach((vtId, vi) => {
                 const val = parseInt(r[dirIdx + 1 + vi]) || 0;
-                if (counts[approach]?.[movement]) {
+                if (counts[approach][movement]) {
                     counts[approach][movement][vtId] = val;
                 }
             });
@@ -1476,9 +1530,38 @@ function parseXLSXToSession(arrayBuffer) {
     const date = dataRows[0]?.[dateIdx] || '';
 
     const approaches = [...new Set(dataRows.map(r => String(r[approachIdx])))];
-    const movementLabels = [...new Set(dataRows.map(r => String(r[dirIdx])))];
-    const movements = movementLabels.map(l => dirLabelToKey[l] || l.toLowerCase()).filter(m => m !== 'crossing');
-    const hasCrossing = movementLabels.some(l => dirLabelToKey[l] === 'crossing');
+
+    // Helper: map a direction label (incl. "Crossing → X") to a movement key
+    const labelToMovement = (label, approach) => {
+        if (dirLabelToKey[label]) return dirLabelToKey[label];
+        const m = String(label).match(/^Crossing\s*[→\->]+\s*(.+)$/i);
+        if (m) {
+            const destName = m[1].trim();
+            const approachIdx = approaches.indexOf(approach);
+            const n = approaches.length;
+            if (approachIdx >= 0 && n >= 2) {
+                let perpA, perpB;
+                if (n === 4) {
+                    perpA = approaches[(approachIdx + 1) % 4];
+                    perpB = approaches[(approachIdx + 3) % 4];
+                } else if (n === 3) {
+                    perpA = approaches[(approachIdx + 1) % 3];
+                    perpB = approaches[(approachIdx + 2) % 3];
+                } else {
+                    perpA = approaches[(approachIdx + 1) % 2];
+                }
+                if (destName === perpA) return 'crossing_a';
+                if (destName === perpB) return 'crossing_b';
+            }
+            return 'crossing_a';
+        }
+        return String(label).toLowerCase();
+    };
+
+    const movementsSet = new Set();
+    dataRows.forEach(r => movementsSet.add(labelToMovement(String(r[dirIdx]), String(r[approachIdx]))));
+    const movements = Array.from(movementsSet).filter(m => !isCrossingMovement(m));
+    const hasCrossingTypes = vtIds.some(vt => CROSSING_TYPES.has(vt));
 
     const intervalKeys = [...new Set(dataRows.map(r => `${r[startIdx]}|${r[endIdx]}`))];
 
@@ -1501,19 +1584,24 @@ function parseXLSXToSession(arrayBuffer) {
             movements.forEach(m => { counts[a][m] = {}; vtIds.forEach(vt => { counts[a][m][vt] = 0; }); });
             const crossingTypes = vtIds.filter(vt => CROSSING_TYPES.has(vt));
             if (crossingTypes.length > 0) {
-                counts[a]['crossing'] = {};
-                crossingTypes.forEach(vt => { counts[a]['crossing'][vt] = 0; });
+                ['crossing_a', 'crossing_b'].forEach(ck => {
+                    counts[a][ck] = {};
+                    crossingTypes.forEach(vt => { counts[a][ck][vt] = 0; });
+                });
             }
         });
 
         dataRows.filter(r => `${r[startIdx]}|${r[endIdx]}` === key).forEach(r => {
             const approach = String(r[approachIdx]);
-            const movLabel = String(r[dirIdx]);
-            const movement = dirLabelToKey[movLabel] || movLabel.toLowerCase();
+            const movement = labelToMovement(String(r[dirIdx]), approach);
+            if (!counts[approach][movement]) {
+                counts[approach][movement] = {};
+                vtIds.forEach(vt => { counts[approach][movement][vt] = 0; });
+            }
 
             vtIds.forEach((vtId, vi) => {
                 const val = parseInt(r[dirIdx + 1 + vi]) || 0;
-                if (counts[approach]?.[movement]) {
+                if (counts[approach][movement]) {
                     counts[approach][movement][vtId] = val;
                 }
             });
@@ -1705,18 +1793,73 @@ function renderResults(view) {
 }
 
 function getAllMovements(session) {
-    // Return all movement keys that exist in the data (turning movements + crossing)
+    // Return all movement keys that exist in the data (turning movements + crossings)
     const movementSet = new Set(session.movements);
     const crossingTypes = session.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
-    if (crossingTypes.length > 0) movementSet.add('crossing');
+    if (crossingTypes.length > 0) {
+        // Two crossing directions per approach
+        movementSet.add('crossing_a');
+        movementSet.add('crossing_b');
+    }
     return Array.from(movementSet);
 }
 
+function isCrossingMovement(movement) {
+    return movement === 'crossing' || movement === 'crossing_a' || movement === 'crossing_b';
+}
+
 function getVehicleTypesForMovement(session, movement) {
-    if (movement === 'crossing') {
+    if (isCrossingMovement(movement)) {
         return session.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
     }
     return session.vehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
+}
+
+// Get the label for a crossing direction within the context of an approach
+// Returns "Crossing → North" style label using the perpendicular approach name
+function getCrossingDirectionLabel(session, approach, movementKey) {
+    if (!isCrossingMovement(movementKey)) return DIRECTION_LABELS[movementKey] || movementKey;
+
+    const approachIdx = session.approaches.indexOf(approach);
+    if (approachIdx < 0) return t('dir_crossing');
+
+    const n = session.approaches.length;
+    let perpIdx;
+    if (n === 4) {
+        perpIdx = movementKey === 'crossing_a' ? (approachIdx + 1) % 4 : (approachIdx + 3) % 4;
+    } else if (n === 3) {
+        perpIdx = movementKey === 'crossing_a' ? (approachIdx + 1) % 3 : (approachIdx + 2) % 3;
+    } else if (n === 2) {
+        perpIdx = (approachIdx + 1) % 2;
+    } else {
+        return t('dir_crossing');
+    }
+
+    const destName = session.approaches[perpIdx] || '?';
+    return `${t('dir_crossing')} → ${destName}`;
+}
+
+// English-only version for CSV/XLSX exports — label is language-independent so files import cleanly
+function getCrossingDirectionLabelEN(session, approach, movementKey) {
+    if (!isCrossingMovement(movementKey)) return DIRECTION_LABELS_EN[movementKey] || movementKey;
+
+    const approachIdx = session.approaches.indexOf(approach);
+    if (approachIdx < 0) return 'Crossing';
+
+    const n = session.approaches.length;
+    let perpIdx;
+    if (n === 4) {
+        perpIdx = movementKey === 'crossing_a' ? (approachIdx + 1) % 4 : (approachIdx + 3) % 4;
+    } else if (n === 3) {
+        perpIdx = movementKey === 'crossing_a' ? (approachIdx + 1) % 3 : (approachIdx + 2) % 3;
+    } else if (n === 2) {
+        perpIdx = (approachIdx + 1) % 2;
+    } else {
+        return 'Crossing';
+    }
+
+    const destName = session.approaches[perpIdx] || '?';
+    return `Crossing → ${destName}`;
 }
 
 function renderSummaryTable(container, session) {
@@ -1755,9 +1898,12 @@ function renderSummaryTable(container, session) {
             session.vehicleTypes.forEach(vt => grandTotals[vt] += totals[vt]);
 
             const arrow = DIRECTION_ARROWS[movement] || '\u{1F6B6}';
+            const dirLabel = isCrossingMovement(movement)
+                ? getCrossingDirectionLabel(session, approach, movement)
+                : DIRECTION_LABELS[movement];
             html += `<tr>
                 <td>${approach}</td>
-                <td>${arrow} ${DIRECTION_LABELS[movement]}</td>
+                <td>${arrow} ${dirLabel}</td>
                 ${session.vehicleTypes.map(vt => `<td>${totals[vt] || ''}</td>`).join('')}
                 <td><strong>${rowTotal}</strong></td>
             </tr>`;
@@ -1857,13 +2003,16 @@ function buildTrafficCSV(session) {
                 );
                 const total = values.reduce((a, b) => a + b, 0);
 
+                const dirLabel = isCrossingMovement(movement)
+                    ? getCrossingDirectionLabelEN(session, approach, movement)
+                    : (DIRECTION_LABELS_EN[movement] || movement);
                 rows.push([
                     `"${session.siteName}"`,
                     session.date,
                     start,
                     end,
                     `"${approach}"`,
-                    DIRECTION_LABELS_EN[movement] || movement,
+                    `"${dirLabel}"`,
                     ...values,
                     total
                 ].join(','));
@@ -2281,7 +2430,10 @@ async function buildTrafficExcelSheets(wb, session) {
             allMovements.forEach(movement => {
                 const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
                 const total = values.reduce((a, b) => a + b, 0);
-                wsRaw.addRow([session.siteName, session.date, start, end, approach, DIRECTION_LABELS_EN[movement] || movement, ...values, total]);
+                const dirLabel = isCrossingMovement(movement)
+                    ? getCrossingDirectionLabelEN(session, approach, movement)
+                    : (DIRECTION_LABELS_EN[movement] || movement);
+                wsRaw.addRow([session.siteName, session.date, start, end, approach, dirLabel, ...values, total]);
             });
         });
     });
@@ -2307,8 +2459,10 @@ async function buildTrafficExcelSheets(wb, session) {
             const rowTotal = Object.values(totals).reduce((a, b) => a + b, 0);
             grandTotal += rowTotal;
             session.vehicleTypes.forEach(vt => grandTotals[vt] += totals[vt]);
-            const arrow = DIRECTION_LABELS_EN[movement] || movement;
-            wsSummary.addRow([approach, arrow, ...session.vehicleTypes.map(vt => totals[vt] || 0), rowTotal]);
+            const dirLabel = isCrossingMovement(movement)
+                ? getCrossingDirectionLabelEN(session, approach, movement)
+                : (DIRECTION_LABELS_EN[movement] || movement);
+            wsSummary.addRow([approach, dirLabel, ...session.vehicleTypes.map(vt => totals[vt] || 0), rowTotal]);
         });
     });
     const totalRow = wsSummary.addRow(['TOTAL', '', ...session.vehicleTypes.map(vt => grandTotals[vt]), grandTotal]);
@@ -2349,7 +2503,10 @@ async function buildTrafficExcelSheets(wb, session) {
             const rowTotal = vtForMov.reduce((sum, vt) => sum + (data[approach][movement]?.[vt] || 0), 0);
             if (rowTotal === 0) return;
 
-            wsVt.addRow([approach, DIRECTION_LABELS_EN[movement] || movement, ...session.vehicleTypes.map(vt => data[approach][movement]?.[vt] || 0), rowTotal]);
+            const dirLabelVt = isCrossingMovement(movement)
+                ? getCrossingDirectionLabelEN(session, approach, movement)
+                : (DIRECTION_LABELS_EN[movement] || movement);
+            wsVt.addRow([approach, dirLabelVt, ...session.vehicleTypes.map(vt => data[approach][movement]?.[vt] || 0), rowTotal]);
             wsVt.addRow(['', '% of row', ...session.vehicleTypes.map(vt => {
                 const count = data[approach][movement]?.[vt] || 0;
                 return count > 0 ? ((count / rowTotal) * 100).toFixed(1) + '%' : '';
@@ -2542,7 +2699,10 @@ function buildTrafficSheetsSheetJS(wb, session) {
             allMovements.forEach(movement => {
                 const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
                 const total = values.reduce((a, b) => a + b, 0);
-                rawRows.push([session.siteName, session.date, start, end, approach, DIRECTION_LABELS_EN[movement] || movement, ...values, total]);
+                const dirLabelFb = isCrossingMovement(movement)
+                    ? getCrossingDirectionLabelEN(session, approach, movement)
+                    : (DIRECTION_LABELS_EN[movement] || movement);
+                rawRows.push([session.siteName, session.date, start, end, approach, dirLabelFb, ...values, total]);
             });
         });
     });
@@ -2609,8 +2769,11 @@ function renderVehicleSplitTable(container, session) {
 
             grandTotal += rowTotal;
             const arrow = DIRECTION_ARROWS[movement] || '\u{1F6B6}';
+            const dirLabel = isCrossingMovement(movement)
+                ? getCrossingDirectionLabel(session, approach, movement)
+                : DIRECTION_LABELS[movement];
 
-            html += `<tr><td>${approach}</td><td>${arrow} ${DIRECTION_LABELS[movement]}</td>`;
+            html += `<tr><td>${approach}</td><td>${arrow} ${dirLabel}</td>`;
             session.vehicleTypes.forEach(vt => {
                 const count = data[approach][movement]?.[vt] || 0;
                 grandVt[vt] = (grandVt[vt] || 0) + count;

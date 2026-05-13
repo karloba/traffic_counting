@@ -338,6 +338,38 @@ body {
     border-bottom-color: #6a1b9a;
 }
 
+/* Reset button inside direction-header */
+.direction-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.section-reset-btn {
+    background: rgba(255,255,255,0.25);
+    border: none;
+    color: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: auto;
+    touch-action: manipulation;
+}
+
+.section-reset-btn:active {
+    background: rgba(255,255,255,0.4);
+    transform: scale(0.95);
+}
+
+.direction-header.uturn .section-reset-btn {
+    background: rgba(0,0,0,0.15);
+}
+
 /* ===== COUNT GRID ===== */
 .count-grid {
     flex: 1;
