@@ -1,3 +1,16 @@
+/*!
+ * Traffic Counter
+ * Copyright (c) 2026 Karlo Babojelić
+ * University of Zagreb, Faculty of Transport and Traffic Sciences
+ *
+ * Licensed under the Creative Commons Attribution-NonCommercial 4.0
+ * International License (CC BY-NC 4.0).
+ * https://creativecommons.org/licenses/by-nc/4.0/
+ *
+ * Live: https://karloba.github.io/traffic_counting/
+ * Source: https://github.com/karloba/traffic_counting
+ */
+
 // ===== I18N =====
 const I18N = {
     en: {
@@ -34,7 +47,7 @@ const I18N = {
         select_files: 'Select Excel files to merge',
         tap_select_files: 'Tap to select .xlsx files',
         merge_view: 'Merge & View Results',
-        credit: 'Made by: Karlo Babojelić, University of Zagreb Faculty of Transport and Traffic Sciences',
+        credit: '© 2026 Karlo Babojelić · University of Zagreb, Faculty of Transport and Traffic Sciences · CC BY-NC 4.0',
         undo: 'Undo',
         pause: 'Pause',
         resume: 'Resume',
@@ -161,7 +174,7 @@ const I18N = {
         select_files: 'Odaberite Excel datoteke za spajanje',
         tap_select_files: 'Tapnite za odabir .xlsx datoteka',
         merge_view: 'Spoji i prikaži rezultate',
-        credit: 'Izradio: Karlo Babojelić, Sveučilište u Zagrebu, Fakultet prometnih znanosti',
+        credit: '© 2026 Karlo Babojelić · Sveučilište u Zagrebu, Fakultet prometnih znanosti · CC BY-NC 4.0',
         undo: 'Poništi',
         pause: 'Pauza',
         resume: 'Nastavi',
