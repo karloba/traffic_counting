@@ -440,35 +440,46 @@ body {
     -webkit-user-select: none;
     touch-action: manipulation;
     transition: transform 0.1s, box-shadow 0.1s;
+    /* Disable iOS native button rendering so absolutely-positioned children render */
+    -webkit-appearance: none;
+    appearance: none;
+    overflow: visible;
 }
 
 /* Per-button × reset badge — hidden until the button has a count */
 .count-btn-reset {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 20px;
-    height: 20px;
-    line-height: 18px;
-    text-align: center;
-    font-size: 14px;
+    top: -8px;
+    right: -8px;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
     font-weight: 700;
     border-radius: 50%;
-    background: rgba(217, 48, 37, 0.9);
+    background: #d93025;
     color: white;
     display: none;
-    z-index: 2;
+    z-index: 5;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    border: 2px solid white;
+    pointer-events: auto;
+    /* Ensure iOS doesn't strip layout properties */
+    -webkit-appearance: none;
+    appearance: none;
+    line-height: 1;
+    box-sizing: border-box;
 }
 
 .count-btn.has-count .count-btn-reset {
-    display: block;
+    display: flex;
 }
 
 .count-btn-reset:active {
     transform: scale(0.85);
-    background: rgba(165, 14, 14, 0.95);
+    background: #a50e0e;
 }
 
 .count-btn:active {
