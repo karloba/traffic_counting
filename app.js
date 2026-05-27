@@ -893,9 +893,16 @@ function renderCrossingDirectionSection(container, approach, movementKey, destAp
         const btn = document.createElement('button');
         btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
         btn.innerHTML = `
+            <span class="count-btn-reset" title="${t('reset')}">&times;</span>
             <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
             <span class="count-value">${count}</span>
         `;
+        // Per-button reset badge
+        btn.querySelector('.count-btn-reset').addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            resetCount(approach, movementKey, vtId);
+        });
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             incrementCount(approach, movementKey, vtId);
@@ -952,9 +959,17 @@ function renderDirectionSection(container, approach, movement, vehicleTypeIds, i
         const btn = document.createElement('button');
         btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
         btn.innerHTML = `
+            <span class="count-btn-reset" title="${t('reset')}">&times;</span>
             <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
             <span class="count-value">${count}</span>
         `;
+
+        // Per-button reset badge
+        btn.querySelector('.count-btn-reset').addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            resetCount(approach, movement, vtId);
+        });
 
         // Tap to increment
         btn.addEventListener('click', (e) => {
@@ -1009,6 +1024,20 @@ function decrementCount(approach, movement, vehicleType) {
     }
 }
 
+// Reset a single (approach, movement, vehicleType) count to 0. Records the
+// previous value in the undo stack so Undo can restore it.
+function resetCount(approach, movement, vehicleType) {
+    const interval = getCurrentInterval();
+    if (!interval) return;
+    const prevValue = interval.counts[approach]?.[movement]?.[vehicleType] || 0;
+    if (prevValue === 0) return;
+    interval.counts[approach][movement][vehicleType] = 0;
+    undoStack.push({ approach, movement, vehicleType, action: 'reset', prevValue });
+    if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+    saveSession();
+    renderCountingScreen();
+}
+
 function undoLast() {
     if (undoStack.length === 0) return;
     const last = undoStack.pop();
@@ -1021,6 +1050,8 @@ function undoLast() {
         }
     } else if (last.action === 'decrement') {
         interval.counts[last.approach][last.movement][last.vehicleType]++;
+    } else if (last.action === 'reset') {
+        interval.counts[last.approach][last.movement][last.vehicleType] = last.prevValue;
     }
 
     if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
