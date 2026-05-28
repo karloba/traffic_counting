@@ -24,6 +24,7 @@
         <header class="app-header">
             <h1 data-i18n="app_title">Traffic Counter</h1>
             <div class="header-actions">
+                <button id="btn-theme" class="btn-icon theme-toggle" title="Toggle theme">&#9788;</button>
                 <div class="lang-switcher">
                     <button class="lang-btn active" data-lang="en" title="English">&#127468;&#127463;</button>
                     <button class="lang-btn" data-lang="hr" title="Hrvatski">&#127469;&#127479;</button>
@@ -177,6 +178,8 @@
         <p class="hint-text-counting" data-i18n="counting_hint">Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.</p>
 
         <div id="approach-tabs" class="approach-tabs"></div>
+
+        <div id="approach-total-strip" class="approach-total-strip" style="display:none"></div>
 
         <div id="count-grid" class="count-grid"></div>
 

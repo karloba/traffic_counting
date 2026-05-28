@@ -271,6 +271,30 @@ const I18N = {
 
 let currentLang = localStorage.getItem('tc_lang') || 'en';
 
+// Theme: 'light' | 'dark'. Default follows system preference if not set.
+let currentTheme = localStorage.getItem('tc_theme')
+    || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+function applyTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    const btn = document.getElementById('btn-theme');
+    if (btn) {
+        // Show the icon for the theme you'll switch TO
+        btn.textContent = currentTheme === 'dark' ? '☀' : '\u{1F319}'; // ☀ in dark mode, 🌙 in light
+        btn.title = currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+}
+
+function setTheme(theme) {
+    currentTheme = theme === 'dark' ? 'dark' : 'light';
+    localStorage.setItem('tc_theme', currentTheme);
+    applyTheme();
+}
+
+function toggleTheme() {
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+
 function t(key, params) {
     let str = (I18N[currentLang] && I18N[currentLang][key]) || (I18N.en[key] || key);
     if (params) {
@@ -331,22 +355,37 @@ function setLanguage(lang) {
 
 // ===== CONSTANTS =====
 const DEFAULT_VEHICLE_TYPES = [
-    { id: 'car', labelKey: 'veh_car' },
-    { id: 'lgv', labelKey: 'veh_lgv' },
-    { id: 'hgv', labelKey: 'veh_hgv' },
-    { id: 'bus', labelKey: 'veh_bus' },
-    { id: 'tram', labelKey: 'veh_tram' },
-    { id: 'motorcycle', labelKey: 'veh_motorcycle' },
-    { id: 'bicycle', labelKey: 'veh_bicycle' },
-    { id: 'pedestrian', labelKey: 'veh_pedestrian' },
-    { id: 'escooter', labelKey: 'veh_escooter' },
-    { id: 'taxi', labelKey: 'veh_taxi' }
+    { id: 'car', labelKey: 'veh_car', icon: '\u{1F697}' },         // 🚗
+    { id: 'lgv', labelKey: 'veh_lgv', icon: '\u{1F690}' },         // 🚐
+    { id: 'hgv', labelKey: 'veh_hgv', icon: '\u{1F69A}' },         // 🚚
+    { id: 'bus', labelKey: 'veh_bus', icon: '\u{1F68C}' },         // 🚌
+    { id: 'tram', labelKey: 'veh_tram', icon: '\u{1F68A}' },       // 🚊
+    { id: 'motorcycle', labelKey: 'veh_motorcycle', icon: '\u{1F3CD}' }, // 🏍
+    { id: 'bicycle', labelKey: 'veh_bicycle', icon: '\u{1F6B2}' }, // 🚲
+    { id: 'pedestrian', labelKey: 'veh_pedestrian', icon: '\u{1F6B6}' }, // 🚶
+    { id: 'escooter', labelKey: 'veh_escooter', icon: '\u{1F6F4}' }, // 🛴
+    { id: 'taxi', labelKey: 'veh_taxi', icon: '\u{1F696}' }        // 🚖
 ];
 
 // Helper to get vehicle type label in current language
 function getVehicleLabel(vtId) {
     const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
     return vt ? t(vt.labelKey) : vtId;
+}
+
+// Helper to get the emoji icon for a vehicle type
+function getVehicleIcon(vtId) {
+    const vt = DEFAULT_VEHICLE_TYPES.find(v => v.id === vtId);
+    return vt ? (vt.icon || '') : '';
+}
+
+// Map a count to a tier class (used for visual intensity scaling)
+function getCountTierClass(count) {
+    if (count >= 50) return 'count-tier-4';
+    if (count >= 25) return 'count-tier-3';
+    if (count >= 10) return 'count-tier-2';
+    if (count >= 1)  return 'count-tier-1';
+    return '';
 }
 
 const DEFAULT_APPROACH_KEYS = ['ap_north', 'ap_east', 'ap_south', 'ap_west'];
@@ -396,6 +435,10 @@ let isPaused = false;
 let undoStack = [];
 let wakeLock = null;
 
+// Track the most recent tap so we can briefly highlight that button after re-render
+let lastTappedKey = null;
+let lastTappedAt = 0;
+
 // Merge state
 let mergeMode = false;
 let mergeSelected = new Set();
@@ -414,6 +457,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
     applyTranslations();
     initSetupForm();
     initPTSetupForm();
@@ -463,6 +507,10 @@ function updateApproachInputs() {
 }
 
 function bindEvents() {
+    // Theme toggle
+    const themeBtn = document.getElementById('btn-theme');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
     // Language switcher
     $$('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
@@ -773,7 +821,64 @@ function getCurrentInterval() {
 // ===== COUNTING SCREEN RENDER =====
 function renderCountingScreen() {
     renderApproachTabs();
+    renderApproachTotalStrip();
     renderCountGrid();
+}
+
+// Render the approach summary strip above the count grid:
+// big total + L/S/R/Crossing pills with sub-totals
+function renderApproachTotalStrip() {
+    const strip = $('#approach-total-strip');
+    if (!strip || !currentSession) return;
+
+    const approach = currentSession.approaches[currentApproachIndex];
+    const total = getApproachTotal(approach);
+
+    if (total === 0) {
+        strip.style.display = 'none';
+        strip.innerHTML = '';
+        return;
+    }
+
+    const interval = getCurrentInterval();
+    if (!interval || !interval.counts[approach]) {
+        strip.style.display = 'none';
+        return;
+    }
+
+    // Compute per-movement subtotals (including both crossings merged)
+    const subtotals = {};
+    for (const movement of Object.keys(interval.counts[approach])) {
+        let s = 0;
+        for (const vt of Object.keys(interval.counts[approach][movement])) {
+            s += interval.counts[approach][movement][vt];
+        }
+        if (movement === 'crossing_a' || movement === 'crossing_b' || movement === 'crossing') {
+            subtotals['crossing'] = (subtotals['crossing'] || 0) + s;
+        } else {
+            subtotals[movement] = s;
+        }
+    }
+
+    const pillFor = (mv, label) => {
+        const v = subtotals[mv] || 0;
+        if (v === 0) return '';
+        return `<span class="total-pill total-pill-${mv}">${label} ${v}</span>`;
+    };
+
+    const pills = [
+        pillFor('left', DIRECTION_ARROWS.left),
+        pillFor('straight', DIRECTION_ARROWS.straight),
+        pillFor('right', DIRECTION_ARROWS.right),
+        pillFor('uturn', DIRECTION_ARROWS.uturn),
+        pillFor('crossing', '\u{1F6B6}')
+    ].filter(Boolean).join('');
+
+    strip.innerHTML = `
+        <div class="approach-total-number">${total}</div>
+        <div class="approach-total-pills">${pills}</div>
+    `;
+    strip.style.display = 'flex';
 }
 
 function renderApproachTabs() {
@@ -891,11 +996,13 @@ function renderCrossingDirectionSection(container, approach, movementKey, destAp
     vehicleTypeIds.forEach(vtId => {
         const count = interval.counts[approach][movementKey][vtId] || 0;
         const btn = document.createElement('button');
-        btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
+        const tierClass = getCountTierClass(count);
+        btn.className = 'count-btn' + (count > 0 ? ' has-count' : '') + (tierClass ? ' ' + tierClass : '');
         btn.innerHTML = `
             <span class="count-btn-reset" title="${t('reset')}">&times;</span>
-            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
+            <span class="vehicle-icon">${getVehicleIcon(vtId)}</span>
             <span class="count-value">${count}</span>
+            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
         `;
         // Per-button reset badge
         btn.querySelector('.count-btn-reset').addEventListener('click', (e) => {
@@ -906,8 +1013,6 @@ function renderCrossingDirectionSection(container, approach, movementKey, destAp
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             incrementCount(approach, movementKey, vtId);
-            btn.classList.add('flash');
-            setTimeout(() => btn.classList.remove('flash'), 150);
         });
         let longPressTimer;
         btn.addEventListener('touchstart', () => {
@@ -915,6 +1020,12 @@ function renderCrossingDirectionSection(container, approach, movementKey, destAp
         }, { passive: true });
         btn.addEventListener('touchend', () => clearTimeout(longPressTimer));
         btn.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+        // Restore "just-tapped" animation if this is the most recent tap
+        if (lastTappedKey === `${approach}|${movementKey}|${vtId}` && Date.now() - lastTappedAt < 1400) {
+            btn.classList.add('just-tapped');
+            setTimeout(() => btn.classList.remove('just-tapped'), 1500 - (Date.now() - lastTappedAt));
+        }
 
         grid.appendChild(btn);
     });
@@ -957,11 +1068,13 @@ function renderDirectionSection(container, approach, movement, vehicleTypeIds, i
         const count = interval.counts[approach][movement][vtId];
 
         const btn = document.createElement('button');
-        btn.className = 'count-btn' + (count > 0 ? ' has-count' : '');
+        const tierClass = getCountTierClass(count);
+        btn.className = 'count-btn' + (count > 0 ? ' has-count' : '') + (tierClass ? ' ' + tierClass : '');
         btn.innerHTML = `
             <span class="count-btn-reset" title="${t('reset')}">&times;</span>
-            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
+            <span class="vehicle-icon">${getVehicleIcon(vtId)}</span>
             <span class="count-value">${count}</span>
+            <span class="vehicle-label">${getVehicleLabel(vtId)}</span>
         `;
 
         // Per-button reset badge
@@ -975,9 +1088,13 @@ function renderDirectionSection(container, approach, movement, vehicleTypeIds, i
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             incrementCount(approach, movement, vtId);
-            btn.classList.add('flash');
-            setTimeout(() => btn.classList.remove('flash'), 150);
         });
+
+        // Restore "just-tapped" highlight
+        if (lastTappedKey === `${approach}|${movement}|${vtId}` && Date.now() - lastTappedAt < 1400) {
+            btn.classList.add('just-tapped');
+            setTimeout(() => btn.classList.remove('just-tapped'), 1500 - (Date.now() - lastTappedAt));
+        }
 
         // Long press to decrement
         let longPressTimer;
@@ -1005,6 +1122,10 @@ function incrementCount(approach, movement, vehicleType) {
     interval.counts[approach][movement][vehicleType]++;
 
     undoStack.push({ approach, movement, vehicleType, action: 'increment' });
+
+    // Track the last tapped button so the re-render can highlight it briefly
+    lastTappedKey = `${approach}|${movement}|${vehicleType}`;
+    lastTappedAt = Date.now();
 
     // Haptic feedback
     if (navigator.vibrate) navigator.vibrate(30);
