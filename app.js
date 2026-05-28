@@ -21,6 +21,29 @@ const I18N = {
         mode_merge: 'Merge Files',
         traffic_hint: 'Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.',
         pt_hint: 'Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.',
+        pt_submode: 'Counting method',
+        pt_submode_stop: 'At a stop',
+        pt_submode_ride: 'On board (ride-check)',
+        pt_ride_hint: 'Ride a single bus/tram line from start to end. Enter the line name, departure time, and the list of stations. At each station tap Entry / Exit for boarding / alighting passengers, then tap "Next station" when the vehicle leaves. The current load (Sum) is calculated automatically.',
+        line_name: 'Line',
+        line_name_ph: 'e.g. Tram 6',
+        departure_time: 'Departure time',
+        stations: 'Stations',
+        station_ph: 'e.g. Glavni kolodvor, Trg bana Jelačića',
+        current_station: 'Current station',
+        entry: 'Entry',
+        exit: 'Exit',
+        on_board: 'On board',
+        next_station: 'Next station',
+        finish_ride: 'Finish ride',
+        ride_progress: 'Progress',
+        confirm_finish_ride: 'Finish the ride and view results?',
+        alert_no_stations: 'Please add at least 2 stations.',
+        alert_no_line: 'Please enter the line name.',
+        ride_check_label: 'Ride-check',
+        station_label: 'Station',
+        time: 'Time',
+        sum: 'Sum',
         merge_hint: 'Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.',
         counting_hint: 'Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.',
         pt_counting_hint: 'Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.',
@@ -48,6 +71,7 @@ const I18N = {
         tap_select_files: 'Tap to select .xlsx files',
         merge_view: 'Merge & View Results',
         credit: '© 2026 Karlo Babojelić · University of Zagreb, Faculty of Transport and Traffic Sciences · CC BY-NC 4.0',
+        team_lang_note: 'Tip for team counts: when multiple students count the same intersection, agree on one language beforehand. Approach names you type (e.g. "North" vs "Sjever") must match exactly across files for the merge feature to combine them cleanly.',
         undo: 'Undo',
         pause: 'Pause',
         resume: 'Resume',
@@ -148,6 +172,29 @@ const I18N = {
         mode_merge: 'Spoji datoteke',
         traffic_hint: 'Brojite vozila na raskrižju prema vrsti, smjeru skretanja i privozu. Odaberite raspored raskrižja, vrste vozila i vremenski interval. Tapnite odgovarajuće vozilo kad prolazi. Dugi pritisak za ispravak krivog brojanja. Podaci se automatski spremaju na svakom intervalu.',
         pt_hint: 'Brojite putnike koji ulaze i izlaze na stajalištu JPP. Dodajte linije autobusa/tramvaja koje prolaze vašim stajalištem. Kad vozilo stigne, odaberite liniju, zatim tapnite Ulaz/Izlaz za svakog putnika (ili prebacite na unos broja za prometnija stajališta). Tapnite Gotovo za spremanje vozila. Podaci se automatski spremaju na svakom intervalu.',
+        pt_submode: 'Način brojanja',
+        pt_submode_stop: 'Na stajalištu',
+        pt_submode_ride: 'U vozilu (ride-check)',
+        pt_ride_hint: 'Vozite se jednom linijom autobusa/tramvaja od početka do kraja. Unesite naziv linije, vrijeme polaska i popis stajališta. Na svakom stajalištu tapnite Ulaz / Izlaz za putnike koji ulaze/izlaze, zatim tapnite "Sljedeće stajalište" kad vozilo krene. Trenutni broj putnika (Suma) se izračunava automatski.',
+        line_name: 'Linija',
+        line_name_ph: 'npr. Tramvaj 6',
+        departure_time: 'Vrijeme polaska',
+        stations: 'Stajališta',
+        station_ph: 'npr. Glavni kolodvor, Trg bana Jelačića',
+        current_station: 'Trenutno stajalište',
+        entry: 'Ulaz',
+        exit: 'Izlaz',
+        on_board: 'U vozilu',
+        next_station: 'Sljedeće stajalište',
+        finish_ride: 'Završi vožnju',
+        ride_progress: 'Napredak',
+        confirm_finish_ride: 'Završiti vožnju i prikazati rezultate?',
+        alert_no_stations: 'Dodajte barem 2 stajališta.',
+        alert_no_line: 'Unesite naziv linije.',
+        ride_check_label: 'Ride-check',
+        station_label: 'Stajalište',
+        time: 'Vrijeme',
+        sum: 'Suma',
         merge_hint: 'Odaberite 2 ili više .xlsx datoteka koje su studenti izvezli dok su brojali na istom raskrižju. Datoteke će se spojiti kombiniranjem privoza i zbrajanjem preklapajućih podataka.',
         counting_hint: 'Tapnite gumb za brojanje. Dugi pritisak za oduzimanje. Koristite kartice za promjenu privoza. Poništi vraća zadnji potez.',
         pt_counting_hint: 'Tapnite liniju kad vozilo stigne. Brojite ulaze/izlaze, zatim tapnite Gotovo. Koristite unos broja za prometnija stajališta. Tapnite x na bilo kojem zapisu za brisanje.',
@@ -175,6 +222,7 @@ const I18N = {
         tap_select_files: 'Tapnite za odabir .xlsx datoteka',
         merge_view: 'Spoji i prikaži rezultate',
         credit: '© 2026 Karlo Babojelić · Sveučilište u Zagrebu, Fakultet prometnih znanosti · CC BY-NC 4.0',
+        team_lang_note: 'Savjet za timsko brojanje: kada više studenata broji isto raskrižje, dogovorite zajednički jezik prije početka. Nazivi privoza koje upisujete (npr. "Sjever" vs "North") moraju biti potpuno isti u svim datotekama da bi se uspješno spojile.',
         undo: 'Poništi',
         pause: 'Pauza',
         resume: 'Nastavi',
@@ -448,8 +496,15 @@ let mergeFiles = []; // { name, session } objects pending merge
 
 // PT-specific state
 let ptLines = [];
+let ptStations = [];
+let ptSubmode = 'stop'; // 'stop' | 'ride'
 let ptCurrentVehicle = null; // { line, boarding, alighting }
 let ptUseNumberInput = false;
+
+// Ride-check live counting state (within an active ride session)
+let rideCurrentStationIdx = 0;
+let rideCurrentEntry = 0;
+let rideCurrentExit = 0;
 
 // ===== DOM ELEMENTS =====
 const $ = (sel) => document.querySelector(sel);
@@ -539,12 +594,45 @@ function bindEvents() {
     // PT setup form
     $('#pt-setup-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        startPTSession();
+        if (ptSubmode === 'ride') {
+            startPTRideSession();
+        } else {
+            startPTSession();
+        }
     });
     $('#btn-add-line').addEventListener('click', addPTLine);
     $('#pt-line-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); addPTLine(); }
     });
+
+    // PT sub-mode radio toggle
+    document.querySelectorAll('input[name="pt-submode"]').forEach(radio => {
+        radio.addEventListener('change', () => setPTSubmode(radio.value));
+    });
+
+    // PT ride-check fields
+    const stationBtn = document.getElementById('btn-add-station');
+    if (stationBtn) stationBtn.addEventListener('click', addPTStation);
+    const stationInput = document.getElementById('pt-station-input');
+    if (stationInput) stationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addPTStation(); }
+    });
+
+    // Ride-check counting controls
+    const btnEntry = document.getElementById('btn-ride-entry');
+    if (btnEntry) btnEntry.addEventListener('click', () => rideCount('entry'));
+    const btnExit = document.getElementById('btn-ride-exit');
+    if (btnExit) btnExit.addEventListener('click', () => rideCount('exit'));
+    const btnEntryMinus = document.getElementById('btn-ride-entry-minus');
+    if (btnEntryMinus) btnEntryMinus.addEventListener('click', () => rideDecrement('entry'));
+    const btnExitMinus = document.getElementById('btn-ride-exit-minus');
+    if (btnExitMinus) btnExitMinus.addEventListener('click', () => rideDecrement('exit'));
+    const btnNextStation = document.getElementById('btn-ride-next');
+    if (btnNextStation) btnNextStation.addEventListener('click', rideNextStation);
+    const btnRideEnd = document.getElementById('btn-ride-end');
+    if (btnRideEnd) btnRideEnd.addEventListener('click', endSession);
+    const btnRideUndo = document.getElementById('btn-ride-undo');
+    if (btnRideUndo) btnRideUndo.addEventListener('click', rideUndo);
 
     // Merge files
     $('#merge-file-input').addEventListener('change', handleMergeFileSelect);
@@ -1241,15 +1329,32 @@ function showQuickSummary() {
 
 // ===== END SESSION =====
 function endSession() {
-    if (!confirm(t('confirm_end'))) return;
+    const confirmMsg = currentSession?.mode === 'pt-ride' ? t('confirm_finish_ride') : t('confirm_end');
+    if (!confirm(confirmMsg)) return;
 
     if (timerInterval) clearInterval(timerInterval);
     releaseWakeLock();
 
-    // Trim end time of last interval to now
-    const lastInterval = getCurrentInterval();
-    if (lastInterval) {
-        lastInterval.endTime = new Date().toISOString();
+    // For ride-check, also log the current in-progress station if any counts exist
+    if (currentSession?.mode === 'pt-ride' && (rideCurrentEntry > 0 || rideCurrentExit > 0)) {
+        const previousSum = rideOnBoardSoFar();
+        const newSum = Math.max(0, previousSum + rideCurrentEntry - rideCurrentExit);
+        currentSession.stationLogs.push({
+            index: rideCurrentStationIdx,
+            station: currentSession.stations[rideCurrentStationIdx] || `Station ${rideCurrentStationIdx + 1}`,
+            entry: rideCurrentEntry,
+            exit: rideCurrentExit,
+            sum: newSum,
+            time: new Date().toISOString()
+        });
+        rideCurrentEntry = 0;
+        rideCurrentExit = 0;
+    } else {
+        // Trim end time of last interval to now (traffic/PT-stop modes)
+        const lastInterval = getCurrentInterval();
+        if (lastInterval) {
+            lastInterval.endTime = new Date().toISOString();
+        }
     }
 
     currentSession.endTime = new Date().toISOString();
@@ -1299,11 +1404,25 @@ function showHistory() {
             const checkbox = mergeMode && s.mode !== 'pt'
                 ? `<input type="checkbox" class="merge-cb" data-id="${s.id}" ${mergeSelected.has(s.id) ? 'checked' : ''}>`
                 : '';
+            let title, tag, sub;
+            if (s.mode === 'pt-ride') {
+                title = s.line || 'Ride';
+                tag = t('ride_check_label');
+                sub = `${(s.stationLogs || []).length} ${t('station_label').toLowerCase()}`;
+            } else if (s.mode === 'pt') {
+                title = s.stopName;
+                tag = t('pt_mode_tag');
+                sub = s.intervals.length;
+            } else {
+                title = s.siteName;
+                tag = t('traffic_mode_tag');
+                sub = s.intervals.length;
+            }
             return `<div class="history-item" data-id="${s.id}">
                 ${checkbox}
                 <div class="history-item-info">
-                    <h3>${s.mode === 'pt' ? s.stopName : s.siteName}</h3>
-                    <p>${s.mode === 'pt' ? t('pt_mode_tag') : t('traffic_mode_tag')} | ${s.date} | ${s.intervals.length}</p>
+                    <h3>${title}</h3>
+                    <p>${tag} | ${s.date} | ${sub}</p>
                 </div>
                 <div class="history-item-actions">
                     <button class="btn-delete-session" data-id="${s.id}" title="Delete">&times;</button>
@@ -1897,7 +2016,15 @@ function showResults(session) {
     currentSession = session;
 
     const info = $('#results-info');
-    if (session.mode === 'pt') {
+    if (session.mode === 'pt-ride') {
+        info.innerHTML = `
+            <div class="site-title">${session.line}</div>
+            <p>${t('mode_label')}: ${t('ride_check_label')}</p>
+            <p>${t('date')}: ${session.date}</p>
+            <p>${t('departure_time')}: ${session.departureTime || '—'}</p>
+            <p>${t('stations')}: ${session.stations.length}</p>
+        `;
+    } else if (session.mode === 'pt') {
         info.innerHTML = `
             <div class="site-title">${session.stopName}</div>
             <p>${t('mode_label')}: ${t('mode_pt_full')}</p>
@@ -1914,19 +2041,17 @@ function showResults(session) {
         `;
     }
 
-    // Show/hide diagram tab (only for traffic mode)
-    $('#tab-diagram').style.display = session.mode === 'pt' ? 'none' : '';
-    $('#tab-vehicle-split').style.display = session.mode === 'pt' ? 'none' : '';
+    const isTraffic = session.mode !== 'pt' && session.mode !== 'pt-ride';
+    $('#tab-diagram').style.display = isTraffic ? '' : 'none';
+    $('#tab-vehicle-split').style.display = isTraffic ? '' : 'none';
 
-    // Render analysis cards (traffic mode only)
     const analysisContainer = $('#results-analysis');
-    if (session.mode !== 'pt') {
+    if (isTraffic) {
         renderAnalysis(analysisContainer, session);
     } else {
         analysisContainer.innerHTML = '';
     }
 
-    // Reset to summary tab
     $$('.results-tab').forEach(tb => tb.classList.remove('active'));
     $('.results-tab[data-view="summary"]').classList.add('active');
 
@@ -1938,6 +2063,10 @@ function renderResults(view) {
     const container = $('#results-content');
     const session = currentSession;
 
+    if (session.mode === 'pt-ride') {
+        renderRideResults(container, session);
+        return;
+    }
     if (session.mode === 'pt') {
         if (view === 'summary') {
             renderPTSummaryTable(container, session);
@@ -1955,6 +2084,45 @@ function renderResults(view) {
             renderIntervalTables(container, session);
         }
     }
+}
+
+function renderRideResults(container, session) {
+    const logs = session.stationLogs || [];
+    let totalEntry = 0, totalExit = 0;
+
+    let html = `<h3 style="margin:12px 0 8px;font-size:1rem;font-weight:700;">${session.line} — ${session.departureTime || ''}</h3>`;
+    html += `<table class="results-table"><thead><tr>
+        <th>#</th>
+        <th>${t('station_label')}</th>
+        <th>${t('time')}</th>
+        <th>${t('entry')}</th>
+        <th>${t('exit')}</th>
+        <th>${t('sum')}</th>
+    </tr></thead><tbody>`;
+
+    logs.forEach((log, i) => {
+        totalEntry += log.entry;
+        totalExit += log.exit;
+        const time = formatTime(new Date(log.time));
+        html += `<tr>
+            <td>${log.index + 1}</td>
+            <td style="text-align:left">${log.station}</td>
+            <td>${time}</td>
+            <td style="color:#188038">${log.entry}</td>
+            <td style="color:#d93025">${log.exit}</td>
+            <td><strong>${log.sum}</strong></td>
+        </tr>`;
+    });
+
+    html += `<tr class="total-row">
+        <td colspan="3">${t('total').toUpperCase()}</td>
+        <td>${totalEntry}</td>
+        <td>${totalExit}</td>
+        <td>${Math.max(0, totalEntry - totalExit)}</td>
+    </tr>`;
+    html += `</tbody></table>`;
+
+    container.innerHTML = html;
 }
 
 function getAllMovements(session) {
@@ -2140,8 +2308,28 @@ function renderIntervalTables(container, session) {
 
 // ===== CSV EXPORT & SHARE =====
 function buildCSV(session) {
+    if (session.mode === 'pt-ride') return buildRideCSV(session);
     if (session.mode === 'pt') return buildPTCSV(session);
     return buildTrafficCSV(session);
+}
+
+function buildRideCSV(session) {
+    const headers = ['Line', 'Date', 'Departure', 'Station #', 'Station', 'Time', 'Entry', 'Exit', 'Sum'];
+    const rows = [headers.join(',')];
+    (session.stationLogs || []).forEach(log => {
+        rows.push([
+            `"${session.line}"`,
+            session.date,
+            session.departureTime || '',
+            log.index + 1,
+            `"${log.station}"`,
+            formatTime(new Date(log.time)),
+            log.entry,
+            log.exit,
+            log.sum
+        ].join(','));
+    });
+    return rows.join('\n');
 }
 
 function buildTrafficCSV(session) {
@@ -2189,9 +2377,18 @@ function buildTrafficCSV(session) {
 }
 
 function getCSVFilename(session) {
-    const name = session.mode === 'pt' ? session.stopName : session.siteName;
-    const prefix = session.mode === 'pt' ? 'pt_passengers' : 'traffic_count';
-    return `${prefix}_${name.replace(/\s+/g, '_')}_${session.date}.csv`;
+    let name, prefix;
+    if (session.mode === 'pt-ride') {
+        name = session.line;
+        prefix = 'ride_check';
+    } else if (session.mode === 'pt') {
+        name = session.stopName;
+        prefix = 'pt_passengers';
+    } else {
+        name = session.siteName;
+        prefix = 'traffic_count';
+    }
+    return `${prefix}_${(name || 'session').replace(/\s+/g, '_')}_${session.date}.csv`;
 }
 
 function exportCSV() {
@@ -2538,14 +2735,19 @@ async function exportXLSX() {
         wb.creator = 'Traffic Counter';
         wb.created = new Date();
 
-        if (session.mode === 'pt') {
+        if (session.mode === 'pt-ride') {
+            await buildRideExcelSheets(wb, session);
+        } else if (session.mode === 'pt') {
             await buildPTExcelSheets(wb, session);
         } else {
             await buildTrafficExcelSheets(wb, session);
         }
 
-        const name = session.mode === 'pt' ? session.stopName : session.siteName;
-        const filename = `${name.replace(/\s+/g, '_')}_${session.date}.xlsx`;
+        let name;
+        if (session.mode === 'pt-ride') name = session.line;
+        else if (session.mode === 'pt') name = session.stopName;
+        else name = session.siteName;
+        const filename = `${(name || 'session').replace(/\s+/g, '_')}_${session.date}.xlsx`;
 
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -2792,6 +2994,75 @@ async function buildTrafficExcelSheets(wb, session) {
         flowChartData.push(row);
     });
     await addChartSheet(wb, 'Chart - Flow Over Time', buildFlowChart(session), flowChartData);
+}
+
+// ===== RIDE-CHECK EXCEL SHEETS =====
+async function buildRideExcelSheets(wb, session) {
+    const ws = wb.addWorksheet('Ride-check');
+    ws.addRow(['Line', 'Date', 'Departure', 'Station #', 'Station', 'Time', 'Entry', 'Exit', 'Sum']);
+    styleHeaderRow(ws.getRow(1));
+
+    let totalEntry = 0, totalExit = 0;
+    (session.stationLogs || []).forEach(log => {
+        ws.addRow([
+            session.line,
+            session.date,
+            session.departureTime || '',
+            log.index + 1,
+            log.station,
+            formatTime(new Date(log.time)),
+            log.entry,
+            log.exit,
+            log.sum
+        ]);
+        totalEntry += log.entry;
+        totalExit += log.exit;
+    });
+
+    const totalRow = ws.addRow(['', '', '', '', 'TOTAL', '', totalEntry, totalExit, Math.max(0, totalEntry - totalExit)]);
+    totalRow.font = { bold: true };
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0EAF5' } };
+
+    autoSizeColumns(ws);
+
+    // Build a chart for boarding/alighting per station
+    if (typeof Chart !== 'undefined' && session.stationLogs && session.stationLogs.length > 0) {
+        try {
+            const chartConfig = buildRideChart(session);
+            const dataRows = [['Station #', 'Station', 'Entry', 'Exit', 'Sum']];
+            session.stationLogs.forEach(log => {
+                dataRows.push([log.index + 1, log.station, log.entry, log.exit, log.sum]);
+            });
+            await addChartSheet(wb, 'Chart - Ride', chartConfig, dataRows);
+        } catch (e) {
+            // chart failed, that's OK
+        }
+    }
+}
+
+function buildRideChart(session) {
+    const labels = session.stationLogs.map(log => log.station);
+    return {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Entry', data: session.stationLogs.map(l => l.entry), backgroundColor: '#188038' },
+                { label: 'Exit', data: session.stationLogs.map(l => l.exit), backgroundColor: '#d93025' },
+                { label: 'On board (Sum)', data: session.stationLogs.map(l => l.sum), type: 'line', borderColor: '#004f9f', backgroundColor: 'rgba(0,79,159,0.1)', borderWidth: 3, fill: true, tension: 0.3, yAxisID: 'y' }
+            ]
+        },
+        options: {
+            plugins: {
+                title: { display: true, text: `${session.line} ${session.departureTime || ''} — ${session.date}`, font: { size: 16 } },
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Station' } },
+                y: { beginAtZero: true, title: { display: true, text: 'Passengers' } }
+            }
+        }
+    };
 }
 
 // ===== PT EXCEL SHEETS (ExcelJS) =====
@@ -3370,6 +3641,12 @@ function initPTSetupForm() {
     $('#pt-start-time').value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
     ptLines = [];
+    ptStations = [];
+
+    // Default departure to start time
+    if ($('#pt-ride-departure')) {
+        $('#pt-ride-departure').value = $('#pt-start-time').value;
+    }
 }
 
 function addPTLine() {
@@ -3395,6 +3672,42 @@ function renderPTLines() {
     container.innerHTML = ptLines.map(line =>
         `<div class="pt-line-chip">${line}<button type="button" onclick="removePTLine('${line.replace(/'/g, "\\'")}')">&times;</button></div>`
     ).join('');
+}
+
+// Station helpers (ride-check mode)
+function addPTStation() {
+    const input = $('#pt-station-input');
+    const val = input.value.trim();
+    if (!val) return;
+    const newStations = val.split(',').map(s => s.trim()).filter(s => s);
+    ptStations.push(...newStations);
+    input.value = '';
+    renderPTStations();
+    input.focus();
+}
+
+function removePTStation(index) {
+    ptStations.splice(index, 1);
+    renderPTStations();
+}
+
+function renderPTStations() {
+    const container = $('#pt-stations-list');
+    if (!container) return;
+    container.innerHTML = ptStations.map((s, i) =>
+        `<div class="pt-line-chip"><span class="pt-station-idx">${i + 1}.</span> ${s}<button type="button" onclick="removePTStation(${i})">&times;</button></div>`
+    ).join('');
+}
+
+function setPTSubmode(mode) {
+    ptSubmode = mode;
+    document.querySelectorAll('.submode-option').forEach(opt => {
+        opt.classList.toggle('active', opt.querySelector('input').value === mode);
+    });
+    $('#pt-stop-fields').style.display = mode === 'stop' ? '' : 'none';
+    $('#pt-ride-fields').style.display = mode === 'ride' ? '' : 'none';
+    // Time interval only applies to stop mode
+    $('#pt-sound-alert-wrap').style.display = mode === 'stop' ? '' : 'none';
 }
 
 function startPTSession() {
@@ -3430,6 +3743,164 @@ function startPTSession() {
     renderPTCountingScreen();
     showScreen('pt-count-screen');
     requestWakeLock();
+}
+
+// ===== RIDE-CHECK (on-board PT) =====
+function startPTRideSession() {
+    const line = $('#pt-ride-line').value.trim();
+    if (!line) {
+        alert(t('alert_no_line'));
+        return;
+    }
+    if (ptStations.length < 2) {
+        alert(t('alert_no_stations'));
+        return;
+    }
+
+    const date = $('#pt-date').value;
+    const departureTime = $('#pt-ride-departure').value || $('#pt-start-time').value;
+
+    currentSession = {
+        id: Date.now().toString(36),
+        mode: 'pt-ride',
+        line,
+        date,
+        departureTime,
+        stations: [...ptStations],
+        // stationLogs is the recorded data per visited station
+        stationLogs: [],
+        createdAt: new Date().toISOString()
+    };
+
+    rideCurrentStationIdx = 0;
+    rideCurrentEntry = 0;
+    rideCurrentExit = 0;
+    undoStack = [];
+    isPaused = false;
+
+    renderRideScreen();
+    showScreen('ride-screen');
+    requestWakeLock();
+}
+
+function rideCount(type) {
+    if (type === 'entry') rideCurrentEntry++;
+    else rideCurrentExit++;
+    if (navigator.vibrate) navigator.vibrate(30);
+    $('#ride-entry-count').textContent = rideCurrentEntry;
+    $('#ride-exit-count').textContent = rideCurrentExit;
+    updateRideOnBoardDisplay();
+}
+
+function rideDecrement(type) {
+    if (type === 'entry' && rideCurrentEntry > 0) rideCurrentEntry--;
+    else if (type === 'exit' && rideCurrentExit > 0) rideCurrentExit--;
+    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+    $('#ride-entry-count').textContent = rideCurrentEntry;
+    $('#ride-exit-count').textContent = rideCurrentExit;
+    updateRideOnBoardDisplay();
+}
+
+function rideOnBoardSoFar() {
+    let sum = 0;
+    currentSession.stationLogs.forEach(log => { sum += log.entry - log.exit; });
+    return Math.max(0, sum);
+}
+
+function updateRideOnBoardDisplay() {
+    const previousSum = rideOnBoardSoFar();
+    const projected = Math.max(0, previousSum + rideCurrentEntry - rideCurrentExit);
+    $('#ride-on-board-num').textContent = projected;
+}
+
+function rideNextStation() {
+    if (!currentSession || currentSession.mode !== 'pt-ride') return;
+
+    const previousSum = rideOnBoardSoFar();
+    const newSum = Math.max(0, previousSum + rideCurrentEntry - rideCurrentExit);
+
+    const stationName = currentSession.stations[rideCurrentStationIdx];
+    currentSession.stationLogs.push({
+        index: rideCurrentStationIdx,
+        station: stationName,
+        entry: rideCurrentEntry,
+        exit: rideCurrentExit,
+        sum: newSum,
+        time: new Date().toISOString()
+    });
+
+    undoStack.push({ type: 'ride-station', stationIdx: rideCurrentStationIdx });
+    saveSession();
+
+    rideCurrentStationIdx++;
+    rideCurrentEntry = 0;
+    rideCurrentExit = 0;
+
+    // If we've recorded the last station, end the ride
+    if (rideCurrentStationIdx >= currentSession.stations.length) {
+        if (confirm(t('confirm_finish_ride'))) {
+            currentSession.endTime = new Date().toISOString();
+            saveSession();
+            releaseWakeLock();
+            showResults(currentSession);
+            return;
+        } else {
+            // Allow going beyond the list (extra stations) — just rewind to last
+            rideCurrentStationIdx = currentSession.stations.length - 1;
+        }
+    }
+
+    renderRideScreen();
+}
+
+function rideUndo() {
+    if (undoStack.length === 0) return;
+    const last = undoStack.pop();
+    if (last.type !== 'ride-station') return;
+
+    // Restore the last station's counts into the live counters and step back
+    const lastLog = currentSession.stationLogs.pop();
+    if (!lastLog) return;
+    rideCurrentStationIdx = lastLog.index;
+    rideCurrentEntry = lastLog.entry;
+    rideCurrentExit = lastLog.exit;
+    saveSession();
+    renderRideScreen();
+}
+
+function renderRideScreen() {
+    if (!currentSession) return;
+    $('#ride-line-display').textContent = currentSession.line;
+    $('#ride-departure-display').textContent = currentSession.departureTime || '';
+
+    const currentName = currentSession.stations[rideCurrentStationIdx] || '—';
+    $('#ride-current-station').textContent = currentName;
+
+    const progress = `${t('station_label')} ${rideCurrentStationIdx + 1} / ${currentSession.stations.length}`;
+    $('#ride-progress-line').textContent = progress;
+
+    $('#ride-entry-count').textContent = rideCurrentEntry;
+    $('#ride-exit-count').textContent = rideCurrentExit;
+    updateRideOnBoardDisplay();
+
+    const historyList = $('#ride-history-list');
+    if (historyList) {
+        if (currentSession.stationLogs.length === 0) {
+            historyList.innerHTML = '';
+        } else {
+            historyList.innerHTML = currentSession.stationLogs.map((log, i) => {
+                const time = formatTime(new Date(log.time));
+                return `<div class="ride-history-entry">
+                    <span class="h-idx">${log.index + 1}.</span>
+                    <span class="h-station" title="${log.station}">${log.station}</span>
+                    <span class="h-entry">+${log.entry}</span>
+                    <span class="h-exit">-${log.exit}</span>
+                    <span class="h-sum">${log.sum}</span>
+                    <span class="h-time">${time}</span>
+                </div>`;
+            }).reverse().join('');
+        }
+    }
 }
 
 function startNewPTInterval() {

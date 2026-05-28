@@ -1454,6 +1454,183 @@ body {
     accent-color: var(--primary);
 }
 
+/* ===== RIDE-CHECK SCREEN ===== */
+.ride-header-info {
+    display: flex;
+    justify-content: space-between;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 0;
+}
+
+.ride-current {
+    text-align: center;
+    padding: 16px 16px 8px;
+    background: var(--surface);
+    margin: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+}
+
+.ride-station-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary);
+}
+
+.ride-station-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 4px 0 10px;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.ride-progress {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.ride-on-board {
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--text);
+    margin: 0 12px 12px;
+    padding: 10px;
+    background: var(--primary-soft);
+    border-radius: var(--radius);
+    font-weight: 600;
+}
+
+.ride-on-board strong {
+    font-size: 1.3rem;
+    color: var(--primary-dark);
+    margin-left: 6px;
+}
+
+.ride-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 0 12px;
+    margin-bottom: 12px;
+}
+
+.ride-next-btn {
+    margin: 0 12px 12px;
+    width: calc(100% - 24px);
+    display: block;
+}
+
+.ride-history {
+    padding: 0 12px 80px;
+}
+
+.ride-history-entry {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+.ride-history-entry .h-idx {
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 24px;
+}
+
+.ride-history-entry .h-station {
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ride-history-entry .h-entry { color: var(--success); font-weight: 700; }
+.ride-history-entry .h-exit { color: var(--danger); font-weight: 700; }
+.ride-history-entry .h-sum {
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.ride-history-entry .h-time {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+/* ===== PT SUB-MODE TOGGLE ===== */
+.submode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px;
+    background: var(--surface-alt);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.submode-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: calc(var(--radius) - 2px);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+}
+
+.submode-option input { display: none; }
+
+.submode-option.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===== TEAM LANGUAGE NOTE ===== */
+.team-note {
+    margin: 10px 12px 0;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface) 82%);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .team-note {
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface) 88%);
+    color: var(--text);
+}
+
+.team-note.compact {
+    margin: 0;
+    font-size: 0.75rem;
+    padding: 8px 12px;
+}
+
 /* ===== HINT TEXT ===== */
 .hint-text {
     font-size: 0.7rem;

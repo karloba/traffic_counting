@@ -39,6 +39,8 @@
             <button class="mode-tab" data-mode="merge" data-i18n="mode_merge">Merge Files</button>
         </div>
 
+        <div class="team-note" data-i18n="team_lang_note">Tip for team counts: when multiple students count the same intersection, agree on one language beforehand. Approach names you type (e.g. "North" vs "Sjever") must match exactly across files for the merge feature to combine them cleanly.</div>
+
         <!-- Traffic Counting Setup -->
         <p class="hint-text" id="traffic-hint" data-i18n="traffic_hint">Count vehicles at an intersection by type, turning movement, and approach. Select your intersection layout, choose vehicle types, and set a time interval. Tap each vehicle button as it passes. Long-press to correct a miscount. Data auto-saves at each interval.</p>
         <form id="setup-form" class="setup-form">
@@ -105,11 +107,68 @@
         <!-- PT Passenger Setup -->
         <p class="hint-text" id="pt-hint" style="display:none" data-i18n="pt_hint">Count boarding and alighting passengers at a PT stop. Add the bus/tram lines that pass your stop. When a vehicle arrives, tap its line, then tap Boarding/Alighting for each passenger (or switch to number entry for busy stops). Tap Done to log the vehicle. Data auto-saves at each interval.</p>
         <form id="pt-setup-form" class="setup-form" style="display:none">
+            <!-- Sub-mode toggle -->
             <div class="form-group">
-                <label for="pt-stop-name" data-i18n="stop_name">Stop Name</label>
-                <input type="text" id="pt-stop-name" data-i18n-placeholder="stop_name_ph" placeholder="e.g. Glavni kolodvor" required>
+                <label data-i18n="pt_submode">Counting method</label>
+                <div class="submode-toggle">
+                    <label class="submode-option active"><input type="radio" name="pt-submode" value="stop" checked><span data-i18n="pt_submode_stop">At a stop</span></label>
+                    <label class="submode-option"><input type="radio" name="pt-submode" value="ride"><span data-i18n="pt_submode_ride">On board (ride-check)</span></label>
+                </div>
             </div>
 
+            <!-- STOP MODE FIELDS -->
+            <div id="pt-stop-fields">
+                <div class="form-group">
+                    <label for="pt-stop-name" data-i18n="stop_name">Stop Name</label>
+                    <input type="text" id="pt-stop-name" data-i18n-placeholder="stop_name_ph" placeholder="e.g. Glavni kolodvor">
+                </div>
+
+                <div class="form-group">
+                    <label for="pt-interval" data-i18n="time_interval">Time Interval (minutes)</label>
+                    <select id="pt-interval">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15" selected>15</option>
+                        <option value="30">30</option>
+                        <option value="60">60</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="lines_at_stop">Lines at this stop</label>
+                    <div id="pt-lines-list" class="pt-lines-list"></div>
+                    <div class="pt-line-add">
+                        <input type="text" id="pt-line-input" data-i18n-placeholder="line_ph" placeholder="e.g. Tram 6, Bus 268">
+                        <button type="button" id="btn-add-line" class="btn-primary" data-i18n="add">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIDE-CHECK MODE FIELDS -->
+            <div id="pt-ride-fields" style="display:none">
+                <p class="hint-text" data-i18n="pt_ride_hint" style="margin-bottom:8px;padding:0">Ride a single bus/tram line from start to end. Enter the line name, departure time, and the list of stations. At each station tap Entry / Exit for boarding / alighting passengers, then tap "Next station" when the vehicle leaves. The current load (Sum) is calculated automatically.</p>
+
+                <div class="form-group">
+                    <label for="pt-ride-line" data-i18n="line_name">Line</label>
+                    <input type="text" id="pt-ride-line" data-i18n-placeholder="line_name_ph" placeholder="e.g. Tram 6">
+                </div>
+
+                <div class="form-group">
+                    <label for="pt-ride-departure" data-i18n="departure_time">Departure time</label>
+                    <input type="time" id="pt-ride-departure">
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="stations">Stations</label>
+                    <div id="pt-stations-list" class="pt-lines-list"></div>
+                    <div class="pt-line-add">
+                        <input type="text" id="pt-station-input" data-i18n-placeholder="station_ph" placeholder="e.g. Glavni kolodvor, Trg bana Jelačića">
+                        <button type="button" id="btn-add-station" class="btn-primary" data-i18n="add">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMMON FIELDS -->
             <div class="form-group">
                 <label for="pt-date" data-i18n="date">Date</label>
                 <input type="date" id="pt-date">
@@ -120,27 +179,7 @@
                 <input type="time" id="pt-start-time">
             </div>
 
-            <div class="form-group">
-                <label for="pt-interval" data-i18n="time_interval">Time Interval (minutes)</label>
-                <select id="pt-interval">
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="15" selected>15</option>
-                    <option value="30">30</option>
-                    <option value="60">60</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label data-i18n="lines_at_stop">Lines at this stop</label>
-                <div id="pt-lines-list" class="pt-lines-list"></div>
-                <div class="pt-line-add">
-                    <input type="text" id="pt-line-input" data-i18n-placeholder="line_ph" placeholder="e.g. Tram 6, Bus 268">
-                    <button type="button" id="btn-add-line" class="btn-primary" data-i18n="add">Add</button>
-                </div>
-            </div>
-
-            <label class="toggle-inline"><input type="checkbox" id="pt-sound-alert" checked> <span data-i18n="sound_alert">Sound alert on interval change</span></label>
+            <label class="toggle-inline" id="pt-sound-alert-wrap"><input type="checkbox" id="pt-sound-alert" checked> <span data-i18n="sound_alert">Sound alert on interval change</span></label>
 
             <button type="submit" class="btn-primary btn-large" data-i18n="start_counting">Start Counting</button>
         </form>
@@ -148,6 +187,8 @@
         <!-- Merge Files -->
         <div id="merge-form" class="setup-form" style="display:none">
             <p class="hint-text" style="padding:0 0 8px" data-i18n="merge_hint">Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.</p>
+
+            <div class="team-note compact" data-i18n="team_lang_note">Tip for team counts: when multiple students count the same intersection, agree on one language beforehand. Approach names you type (e.g. "North" vs "Sjever") must match exactly across files for the merge feature to combine them cleanly.</div>
 
             <div class="form-group">
                 <label data-i18n="select_files">Select Excel files to merge</label>
@@ -260,6 +301,56 @@
             <button id="btn-pt-pause" class="btn-footer" title="Pause">&#9646;&#9646; <span data-i18n="pause">Pause</span></button>
             <button id="btn-pt-summary" class="btn-footer" title="Quick summary">&#931; <span data-i18n="summary">Summary</span></button>
             <button id="btn-pt-end" class="btn-footer btn-danger" title="End session">&#9632; <span data-i18n="end">End</span></button>
+        </div>
+    </div>
+
+    <!-- RIDE-CHECK SCREEN -->
+    <div id="ride-screen" class="screen">
+        <div class="count-header">
+            <div class="ride-header-info">
+                <span id="ride-line-display">—</span>
+                <span id="ride-departure-display">—</span>
+            </div>
+        </div>
+
+        <div class="ride-current">
+            <div class="ride-station-label" data-i18n="current_station">Current station</div>
+            <div id="ride-current-station" class="ride-station-name">—</div>
+            <div class="ride-progress" id="ride-progress-line"></div>
+        </div>
+
+        <div class="ride-on-board">
+            <span data-i18n="on_board">On board</span>:
+            <strong id="ride-on-board-num">0</strong>
+        </div>
+
+        <div class="ride-buttons">
+            <div class="pt-count-col">
+                <button id="btn-ride-entry" class="pt-big-btn boarding">
+                    <span class="pt-btn-label" data-i18n="entry">ENTRY</span>
+                    <span id="ride-entry-count" class="pt-btn-count">0</span>
+                </button>
+                <button id="btn-ride-entry-minus" class="pt-minus-btn">-1</button>
+            </div>
+            <div class="pt-count-col">
+                <button id="btn-ride-exit" class="pt-big-btn alighting">
+                    <span class="pt-btn-label" data-i18n="exit">EXIT</span>
+                    <span id="ride-exit-count" class="pt-btn-count">0</span>
+                </button>
+                <button id="btn-ride-exit-minus" class="pt-minus-btn">-1</button>
+            </div>
+        </div>
+
+        <button id="btn-ride-next" class="btn-primary btn-large ride-next-btn" data-i18n="next_station">Next station</button>
+
+        <div class="ride-history">
+            <h3 class="pt-log-title" data-i18n="ride_progress">Progress</h3>
+            <div id="ride-history-list"></div>
+        </div>
+
+        <div class="count-footer">
+            <button id="btn-ride-undo" class="btn-footer" title="Undo">&#8630; <span data-i18n="undo">Undo</span></button>
+            <button id="btn-ride-end" class="btn-footer btn-danger" title="Finish ride">&#9632; <span data-i18n="finish_ride">Finish ride</span></button>
         </div>
     </div>
 
