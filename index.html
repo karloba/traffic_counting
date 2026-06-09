@@ -101,6 +101,17 @@
 
             <label class="toggle-inline"><input type="checkbox" id="sound-alert" checked> <span data-i18n="sound_alert">Sound alert on interval change</span></label>
 
+            <label class="toggle-inline"><input type="checkbox" id="noise-enable"> <span data-i18n="noise_enable">Measure traffic noise (microphone)</span></label>
+
+            <div id="noise-options" style="display:none">
+                <div class="form-group" style="margin-top:6px">
+                    <label for="noise-offset" data-i18n="noise_calibration_offset">Calibration offset (dB)</label>
+                    <input type="number" id="noise-offset" value="94" step="1" min="0" max="160">
+                    <small class="form-hint" data-i18n="noise_calibration_hint">Add or subtract dB to roughly match a real sound level meter. Saved per device.</small>
+                </div>
+                <p class="hint-text" data-i18n="noise_disclaimer" style="margin-top:4px;padding:0;font-size:0.7rem">Uncalibrated reference for relative comparison and educational use only. Not valid for legal compliance measurements. Microphone audio is processed locally and never recorded or uploaded.</p>
+            </div>
+
             <button type="submit" class="btn-primary btn-large" data-i18n="start_counting">Start Counting</button>
         </form>
 
@@ -219,6 +230,20 @@
         <p class="hint-text-counting" data-i18n="counting_hint">Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.</p>
 
         <div id="approach-tabs" class="approach-tabs"></div>
+
+        <div id="noise-strip" class="noise-strip" style="display:none">
+            <div class="noise-main">
+                <div class="noise-value-wrap">
+                    <span class="noise-label" data-i18n="noise_live">Live</span>
+                    <span id="noise-current-value" class="noise-value">— <small>dB(A)</small></span>
+                </div>
+                <canvas id="noise-spark" class="noise-spark" width="160" height="36"></canvas>
+                <div class="noise-meta">
+                    <span class="noise-meta-label" data-i18n="noise_laeq">LAeq</span>
+                    <span id="noise-laeq-value">—</span>
+                </div>
+            </div>
+        </div>
 
         <div id="approach-total-strip" class="approach-total-strip" style="display:none"></div>
 

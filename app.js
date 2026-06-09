@@ -72,6 +72,23 @@ const I18N = {
         merge_view: 'Merge & View Results',
         credit: '© 2026 Karlo Babojelić · University of Zagreb, Faculty of Transport and Traffic Sciences · CC BY-NC 4.0',
         team_lang_note: 'Tip for team counts: when multiple students count the same intersection, agree on one language beforehand. Approach names you type (e.g. "North" vs "Sjever") must match exactly across files for the merge feature to combine them cleanly.',
+        noise_enable: 'Measure traffic noise (microphone)',
+        noise_calibration: 'Calibration',
+        noise_calibration_offset: 'Calibration offset (dB)',
+        noise_calibration_hint: 'Add or subtract dB to roughly match a real sound level meter. Saved per device.',
+        noise_disclaimer: 'Uncalibrated reference for relative comparison and educational use only. Not valid for legal compliance measurements. Microphone audio is processed locally and never recorded or uploaded.',
+        noise_live: 'Live',
+        noise_section_title: 'Traffic Noise',
+        noise_laeq: 'LAeq',
+        noise_lamax: 'LAmax',
+        noise_lamin: 'LAmin',
+        noise_la10: 'LA10',
+        noise_la50: 'LA50',
+        noise_la90: 'LA90',
+        noise_permission_denied: 'Microphone permission denied. The session will continue without noise measurement.',
+        noise_loudest_interval: 'Loudest interval',
+        noise_unit_db: 'dB(A)',
+        noise_interval_stats: 'Interval noise statistics',
         undo: 'Undo',
         pause: 'Pause',
         resume: 'Resume',
@@ -223,6 +240,23 @@ const I18N = {
         merge_view: 'Spoji i prikaži rezultate',
         credit: '© 2026 Karlo Babojelić · Sveučilište u Zagrebu, Fakultet prometnih znanosti · CC BY-NC 4.0',
         team_lang_note: 'Savjet za timsko brojanje: kada više studenata broji isto raskrižje, dogovorite zajednički jezik prije početka. Nazivi privoza koje upisujete (npr. "Sjever" vs "North") moraju biti potpuno isti u svim datotekama da bi se uspješno spojile.',
+        noise_enable: 'Mjeri buku prometa (mikrofon)',
+        noise_calibration: 'Kalibracija',
+        noise_calibration_offset: 'Korekcija kalibracije (dB)',
+        noise_calibration_hint: 'Dodajte ili oduzmite dB kako bi približno odgovaralo pravom mjeraču buke. Spremljeno po uređaju.',
+        noise_disclaimer: 'Nekalibrirana referenca samo za relativnu usporedbu i obrazovnu uporabu. Nije važeća za pravna mjerenja sukladnosti. Zvuk se obrađuje lokalno i nikada se ne snima niti šalje.',
+        noise_live: 'Trenutno',
+        noise_section_title: 'Buka prometa',
+        noise_laeq: 'LAeq',
+        noise_lamax: 'LAmax',
+        noise_lamin: 'LAmin',
+        noise_la10: 'LA10',
+        noise_la50: 'LA50',
+        noise_la90: 'LA90',
+        noise_permission_denied: 'Pristup mikrofonu odbijen. Sesija će se nastaviti bez mjerenja buke.',
+        noise_loudest_interval: 'Najbučniji interval',
+        noise_unit_db: 'dB(A)',
+        noise_interval_stats: 'Statistika buke po intervalima',
         undo: 'Poništi',
         pause: 'Pauza',
         resume: 'Nastavi',
@@ -566,6 +600,24 @@ function bindEvents() {
     const themeBtn = document.getElementById('btn-theme');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
+    // Noise enable toggle: reveal/hide options + remember calibration
+    const noiseEnableBox = document.getElementById('noise-enable');
+    const noiseOptions = document.getElementById('noise-options');
+    if (noiseEnableBox) {
+        noiseEnableBox.addEventListener('change', () => {
+            noiseOptions.style.display = noiseEnableBox.checked ? '' : 'none';
+        });
+    }
+    const noiseOffsetInput = document.getElementById('noise-offset');
+    if (noiseOffsetInput) {
+        // Restore last saved offset
+        const saved = localStorage.getItem('tc_noise_offset');
+        if (saved !== null && saved !== '') noiseOffsetInput.value = saved;
+        noiseOffsetInput.addEventListener('change', () => {
+            localStorage.setItem('tc_noise_offset', noiseOffsetInput.value);
+        });
+    }
+
     // Language switcher
     $$('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
@@ -720,6 +772,9 @@ function startSession() {
 
     const soundAlert = $('#sound-alert').checked;
 
+    const noiseEnabled = $('#noise-enable')?.checked || false;
+    const calibrationOffset = parseFloat($('#noise-offset')?.value) || 94;
+
     // Build session
     currentSession = {
         id: Date.now().toString(36),
@@ -731,6 +786,8 @@ function startSession() {
         movements,
         vehicleTypes,
         soundAlert,
+        noiseEnabled,
+        noiseCalibrationOffset: calibrationOffset,
         intervals: [],
         createdAt: new Date().toISOString()
     };
@@ -738,6 +795,19 @@ function startSession() {
     currentApproachIndex = 0;
     undoStack = [];
     isPaused = false;
+
+    // Request microphone & start noise logger if enabled
+    if (noiseEnabled) {
+        NoiseLogger.start(calibrationOffset, updateNoiseUI)
+            .then(() => {
+                renderNoiseStrip();
+            })
+            .catch(() => {
+                currentSession.noiseDenied = true;
+                alert(t('noise_permission_denied'));
+                renderNoiseStrip();
+            });
+    }
 
     // Start first interval
     startNewInterval();
@@ -872,6 +942,15 @@ function onIntervalEnd() {
         playBeep();
     }
 
+    // Finalize noise stats for the just-completed interval
+    if (currentSession?.noiseEnabled && NoiseLogger.enabled) {
+        const interval = getCurrentInterval();
+        if (interval) {
+            const stats = NoiseLogger.finalizeInterval();
+            if (stats) interval.noiseStats = stats;
+        }
+    }
+
     saveSession();
 
     if (currentSession.mode === 'pt') {
@@ -910,7 +989,72 @@ function getCurrentInterval() {
 function renderCountingScreen() {
     renderApproachTabs();
     renderApproachTotalStrip();
+    renderNoiseStrip();
     renderCountGrid();
+}
+
+// Show/hide the noise strip based on session state
+function renderNoiseStrip() {
+    const strip = $('#noise-strip');
+    if (!strip || !currentSession) return;
+    if (currentSession.noiseEnabled && !currentSession.noiseDenied) {
+        strip.style.display = '';
+    } else {
+        strip.style.display = 'none';
+    }
+}
+
+// Called by NoiseLogger on each sample to update the live UI
+function updateNoiseUI(dbA) {
+    const valueEl = $('#noise-current-value');
+    if (valueEl) valueEl.innerHTML = `${round1(dbA)} <small>dB(A)</small>`;
+
+    // Update LAeq chip from running interval samples
+    const stats = NoiseLogger.computeStats(NoiseLogger.intervalSamples);
+    const laeqEl = $('#noise-laeq-value');
+    if (laeqEl) laeqEl.textContent = stats ? `${stats.LAeq.toFixed(1)} dB` : '—';
+
+    // Draw sparkline
+    drawNoiseSparkline();
+}
+
+function drawNoiseSparkline() {
+    const canvas = $('#noise-spark');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const samples = NoiseLogger.sparkBuffer;
+    if (!samples || samples.length === 0) return;
+
+    // Compute min/max for the visible buffer for autoscale (with a small floor for stability)
+    let min = Infinity, max = -Infinity;
+    for (const v of samples) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+    if (max - min < 5) { max = min + 5; }
+
+    const color = getComputedStyle(canvas).getPropertyValue('color') || '#8b5cf6';
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.18)';
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    for (let i = 0; i < samples.length; i++) {
+        const x = (i / (NoiseLogger.sparkBufferMax - 1)) * w;
+        const y = h - ((samples[i] - min) / (max - min)) * (h - 4) - 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Fill under the line
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
 }
 
 // Render the approach summary strip above the count grid:
@@ -1334,6 +1478,16 @@ function endSession() {
 
     if (timerInterval) clearInterval(timerInterval);
     releaseWakeLock();
+
+    // Finalize noise stats on the final partial interval, then stop the logger
+    if (currentSession?.noiseEnabled && NoiseLogger.enabled) {
+        const interval = getCurrentInterval();
+        if (interval) {
+            const stats = NoiseLogger.finalizeInterval();
+            if (stats) interval.noiseStats = stats;
+        }
+        NoiseLogger.stop();
+    }
 
     // For ride-check, also log the current in-progress station if any counts exist
     if (currentSession?.mode === 'pt-ride' && (rideCurrentEntry > 0 || rideCurrentExit > 0)) {
@@ -2301,6 +2455,18 @@ function renderIntervalTables(container, session) {
         });
 
         html += `</tbody></table>`;
+
+        // Noise summary line below the table for this interval
+        if (interval.noiseStats) {
+            const ns = interval.noiseStats;
+            html += `<div class="interval-noise-line">
+                <strong>${t('noise_section_title')}:</strong>
+                LAeq ${ns.LAeq.toFixed(1)} ·
+                LAmax ${ns.LAmax.toFixed(1)} ·
+                LAmin ${ns.LAmin.toFixed(1)} ·
+                LA10 ${ns.LA10.toFixed(1)} · LA50 ${ns.LA50.toFixed(1)} · LA90 ${ns.LA90.toFixed(1)} dB(A)
+            </div>`;
+        }
     });
 
     container.innerHTML = html;
@@ -2339,8 +2505,12 @@ function buildTrafficCSV(session) {
         return enLabel[vt] || vt;
     });
 
+    const noiseHeaders = session.noiseEnabled
+        ? ['LAeq dB(A)', 'LAmin dB(A)', 'LAmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)']
+        : [];
+
     const headers = ['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction',
-        ...vtHeaders, 'Total'];
+        ...vtHeaders, 'Total', ...noiseHeaders];
     const rows = [headers.join(',')];
 
     const allMovements = getAllMovements(session);
@@ -2348,6 +2518,10 @@ function buildTrafficCSV(session) {
     session.intervals.forEach(interval => {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
+        const noiseCols = session.noiseEnabled && interval.noiseStats
+            ? [interval.noiseStats.LAeq, interval.noiseStats.LAmin, interval.noiseStats.LAmax,
+               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90]
+            : (session.noiseEnabled ? ['', '', '', '', '', ''] : []);
 
         session.approaches.forEach(approach => {
             allMovements.forEach(movement => {
@@ -2367,7 +2541,8 @@ function buildTrafficCSV(session) {
                     `"${approach}"`,
                     `"${dirLabel}"`,
                     ...values,
-                    total
+                    total,
+                    ...noiseCols
                 ].join(','));
             });
         });
@@ -2784,15 +2959,22 @@ function exportXLSXFallback(session) {
 async function buildTrafficExcelSheets(wb, session) {
     const allMovements = getAllMovements(session);
     const vtLabels = session.vehicleTypes.map(vt => VEHICLE_LABELS_EN[vt] || vt);
+    const noiseHeaders = session.noiseEnabled
+        ? ['LAeq dB(A)', 'LAmin dB(A)', 'LAmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)']
+        : [];
 
     // --- Sheet 1: Raw Data ---
     const wsRaw = wb.addWorksheet('Raw Data');
-    wsRaw.addRow(['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction', ...vtLabels, 'Total']);
+    wsRaw.addRow(['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction', ...vtLabels, 'Total', ...noiseHeaders]);
     styleHeaderRow(wsRaw.getRow(1));
 
     session.intervals.forEach(interval => {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
+        const noiseCols = session.noiseEnabled && interval.noiseStats
+            ? [interval.noiseStats.LAeq, interval.noiseStats.LAmin, interval.noiseStats.LAmax,
+               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90]
+            : (session.noiseEnabled ? ['', '', '', '', '', ''] : []);
         session.approaches.forEach(approach => {
             allMovements.forEach(movement => {
                 const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
@@ -2800,7 +2982,7 @@ async function buildTrafficExcelSheets(wb, session) {
                 const dirLabel = isCrossingMovement(movement)
                     ? getCrossingDirectionLabelEN(session, approach, movement)
                     : (DIRECTION_LABELS_EN[movement] || movement);
-                wsRaw.addRow([session.siteName, session.date, start, end, approach, dirLabel, ...values, total]);
+                wsRaw.addRow([session.siteName, session.date, start, end, approach, dirLabel, ...values, total, ...noiseCols]);
             });
         });
     });
@@ -2994,6 +3176,93 @@ async function buildTrafficExcelSheets(wb, session) {
         flowChartData.push(row);
     });
     await addChartSheet(wb, 'Chart - Flow Over Time', buildFlowChart(session), flowChartData);
+
+    // --- Noise sheets (only if session had noise enabled) ---
+    if (session.noiseEnabled) {
+        const noisyIntervals = session.intervals.filter(i => i.noiseStats);
+        if (noisyIntervals.length > 0) {
+            // Sheet: Noise
+            const wsNoise = wb.addWorksheet('Noise');
+            // Disclaimer as first visible row, italic small
+            const disclaimerRow = wsNoise.addRow(['Disclaimer: uncalibrated reference for relative comparison and educational use only. Not valid for legal compliance measurements.']);
+            disclaimerRow.font = { italic: true, size: 9, color: { argb: 'FF666666' } };
+            wsNoise.addRow([]);
+            wsNoise.addRow(['Interval Start', 'Interval End', 'LAeq dB(A)', 'LAmin', 'LAmax', 'LA10', 'LA50', 'LA90', 'Samples']);
+            styleHeaderRow(wsNoise.getRow(3));
+            session.intervals.forEach(intv => {
+                if (!intv.noiseStats) return;
+                const ns = intv.noiseStats;
+                wsNoise.addRow([
+                    formatTime(new Date(intv.startTime)),
+                    formatTime(new Date(intv.endTime)),
+                    ns.LAeq, ns.LAmin, ns.LAmax, ns.LA10, ns.LA50, ns.LA90, ns.sampleCount
+                ]);
+            });
+            // Append summary row
+            const ns = computeSessionNoiseSummary(session);
+            if (ns) {
+                wsNoise.addRow([]);
+                const sumRow = wsNoise.addRow(['Session LAeq', '', ns.sessionLAeq, '', '', '', '', '', '']);
+                sumRow.font = { bold: true };
+            }
+            autoSizeColumns(wsNoise);
+
+            // Chart sheet: Noise vs flow
+            const chartData = [['Interval Start', 'LAeq dB(A)', 'Vehicle flow']];
+            noisyIntervals.forEach(intv => {
+                // total vehicles in this interval
+                let flow = 0;
+                for (const a of Object.keys(intv.counts || {})) {
+                    for (const m of Object.keys(intv.counts[a] || {})) {
+                        for (const vt of Object.keys(intv.counts[a][m] || {})) {
+                            flow += intv.counts[a][m][vt];
+                        }
+                    }
+                }
+                chartData.push([formatTime(new Date(intv.startTime)), intv.noiseStats.LAeq, flow]);
+            });
+            try {
+                await addChartSheet(wb, 'Chart - Noise', buildNoiseChart(session, noisyIntervals), chartData);
+            } catch (e) { /* chart failed, sheet still has data */ }
+        }
+    }
+}
+
+function buildNoiseChart(session, noisyIntervals) {
+    const labels = noisyIntervals.map(intv => formatTime(new Date(intv.startTime)));
+    const laeq = noisyIntervals.map(intv => intv.noiseStats.LAeq);
+    const flow = noisyIntervals.map(intv => {
+        let f = 0;
+        for (const a of Object.keys(intv.counts || {})) {
+            for (const m of Object.keys(intv.counts[a] || {})) {
+                for (const vt of Object.keys(intv.counts[a][m] || {})) {
+                    f += intv.counts[a][m][vt];
+                }
+            }
+        }
+        return f;
+    });
+    return {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'LAeq dB(A)', data: laeq, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.15)', borderWidth: 3, fill: true, tension: 0.3, yAxisID: 'y' },
+                { label: 'Vehicle flow', data: flow, borderColor: '#004f9f', borderWidth: 2, tension: 0.3, yAxisID: 'y1', type: 'line' }
+            ]
+        },
+        options: {
+            plugins: {
+                title: { display: true, text: 'Traffic noise vs flow per interval', font: { size: 16 } },
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Interval start' } },
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'LAeq dB(A)' } },
+                y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Vehicles' } }
+            }
+        }
+    };
 }
 
 // ===== RIDE-CHECK EXCEL SHEETS =====
@@ -3241,6 +3510,180 @@ function renderVehicleSplitTable(container, session) {
     container.innerHTML = html;
 }
 
+// ===== NOISE LOGGER =====
+// Captures ambient sound via microphone, applies A-weighting, computes dB(A),
+// maintains a ring buffer for the sparkline and accumulates per-interval stats.
+// IMPORTANT: phone microphones are uncalibrated — values are valid for relative
+// comparison only, not for legal compliance measurements.
+
+const NoiseLogger = {
+    enabled: false,
+    audioContext: null,
+    analyser: null,
+    sourceNode: null,
+    stream: null,
+    sampleTimer: null,
+    sparkBuffer: [],         // dB(A) values, last ~300 samples (30s at 10 Hz)
+    sparkBufferMax: 300,
+    intervalSamples: [],     // dB(A) values for the active interval (cleared on interval end)
+    calibrationOffset: 0,    // dB to add to dBFS to get dB(A) SPL
+    onUpdate: null,          // callback(currentDb) for UI updates
+    aWeightCache: null,      // cached A-weighting curve for the current sample rate / FFT size
+
+    // Convert frequency (Hz) to A-weighting gain in dB (IEC 61672 closed form)
+    aWeighting(f) {
+        if (f <= 0) return -Infinity;
+        const f2 = f * f;
+        const numerator = (12194 * 12194) * (f2 * f2);
+        const denominator = (f2 + 20.6 * 20.6) *
+            Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) *
+            (f2 + 12194 * 12194);
+        const RA = numerator / denominator;
+        return 20 * Math.log10(RA) + 2.00;
+    },
+
+    // Pre-compute A-weighting gain per bin (in linear power) once per analyser config
+    buildAWeightCache(sampleRate, fftSize) {
+        const binCount = fftSize / 2;
+        const cache = new Float32Array(binCount);
+        const binWidth = sampleRate / fftSize;
+        for (let i = 0; i < binCount; i++) {
+            const freq = i * binWidth;
+            const gainDb = this.aWeighting(freq);
+            // Convert dB gain to linear power factor
+            cache[i] = Math.pow(10, gainDb / 10);
+        }
+        this.aWeightCache = cache;
+    },
+
+    async start(calibrationOffset, onUpdate) {
+        this.calibrationOffset = calibrationOffset || 0;
+        this.onUpdate = onUpdate || null;
+        this.sparkBuffer = [];
+        this.intervalSamples = [];
+
+        try {
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                }
+            });
+        } catch (e) {
+            this.enabled = false;
+            throw e;
+        }
+
+        // Use webkitAudioContext as fallback for older iOS
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this.audioContext = new Ctx();
+        this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 4096;
+        this.analyser.smoothingTimeConstant = 0;
+        this.sourceNode.connect(this.analyser);
+
+        this.buildAWeightCache(this.audioContext.sampleRate, this.analyser.fftSize);
+
+        this.enabled = true;
+
+        // Sample at ~10 Hz
+        const buffer = new Float32Array(this.analyser.frequencyBinCount);
+        this.sampleTimer = setInterval(() => {
+            if (!this.enabled || !this.analyser) return;
+            this.analyser.getFloatFrequencyData(buffer);
+
+            // Sum A-weighted power across all bins
+            let totalPower = 0;
+            for (let i = 1; i < buffer.length; i++) { // skip DC bin
+                const dBFS = buffer[i];
+                if (!isFinite(dBFS)) continue;
+                const power = Math.pow(10, dBFS / 10);     // power per bin (linear, normalised)
+                totalPower += power * this.aWeightCache[i]; // apply A-weighting
+            }
+
+            if (totalPower <= 0 || !isFinite(totalPower)) return;
+            const dBFS_A = 10 * Math.log10(totalPower);
+            const dbA = dBFS_A + this.calibrationOffset;
+
+            // Ring buffer for sparkline
+            this.sparkBuffer.push(dbA);
+            if (this.sparkBuffer.length > this.sparkBufferMax) this.sparkBuffer.shift();
+
+            // Accumulator for current interval
+            this.intervalSamples.push(dbA);
+
+            if (this.onUpdate) this.onUpdate(dbA);
+        }, 100); // 10 Hz
+    },
+
+    // Compute statistics for the samples array. Returns null if empty.
+    computeStats(samples) {
+        if (!samples || samples.length === 0) return null;
+
+        // LAeq: energy mean → log
+        let energySum = 0;
+        let lamin = Infinity, lamax = -Infinity;
+        for (const v of samples) {
+            energySum += Math.pow(10, v / 10);
+            if (v < lamin) lamin = v;
+            if (v > lamax) lamax = v;
+        }
+        const LAeq = 10 * Math.log10(energySum / samples.length);
+
+        // Percentiles: LAx = level exceeded x% of the time → x-th percentile from the top
+        // i.e. for LA10 we want the value that 10% of samples exceed
+        const sorted = [...samples].sort((a, b) => a - b);
+        const percentile = (p) => {
+            // LAp: take the value at (1 - p/100) position in ascending sorted array
+            const pos = (1 - p / 100) * (sorted.length - 1);
+            const lo = Math.floor(pos);
+            const hi = Math.ceil(pos);
+            if (lo === hi) return sorted[lo];
+            return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+        };
+
+        return {
+            LAeq: round1(LAeq),
+            LAmin: round1(lamin),
+            LAmax: round1(lamax),
+            LA10: round1(percentile(10)),
+            LA50: round1(percentile(50)),
+            LA90: round1(percentile(90)),
+            sampleCount: samples.length
+        };
+    },
+
+    // Finalize the current interval: compute stats and reset the sample buffer
+    finalizeInterval() {
+        const stats = this.computeStats(this.intervalSamples);
+        this.intervalSamples = [];
+        return stats;
+    },
+
+    stop() {
+        this.enabled = false;
+        if (this.sampleTimer) clearInterval(this.sampleTimer);
+        this.sampleTimer = null;
+        if (this.stream) {
+            this.stream.getTracks().forEach(t => t.stop());
+            this.stream = null;
+        }
+        if (this.audioContext) {
+            this.audioContext.close().catch(() => {});
+            this.audioContext = null;
+        }
+        this.analyser = null;
+        this.sourceNode = null;
+        this.aWeightCache = null;
+    }
+};
+
+function round1(v) {
+    return Math.round(v * 10) / 10;
+}
+
 // ===== TRAFFIC ANALYSIS =====
 
 function getIntervalTotal(session, interval) {
@@ -3460,7 +3903,39 @@ function renderAnalysis(container, session) {
         });
     }
 
+    // Traffic noise card
+    const noiseSummary = computeSessionNoiseSummary(session);
+    if (noiseSummary) {
+        html += `<div class="analysis-card">
+            <div class="analysis-title">${t('noise_section_title')}</div>
+            <div class="analysis-value">${noiseSummary.sessionLAeq.toFixed(1)} dB(A)</div>
+            <div class="analysis-detail">LAeq · ${t('noise_loudest_interval')}: ${noiseSummary.loudestTime} (${noiseSummary.loudestLAeq.toFixed(1)} dB)</div>
+        </div>`;
+    }
+
     container.innerHTML = html;
+}
+
+// Aggregate noise stats across all intervals in a session
+function computeSessionNoiseSummary(session) {
+    if (!session.noiseEnabled) return null;
+    const noisy = session.intervals.filter(i => i.noiseStats);
+    if (noisy.length === 0) return null;
+
+    // Session LAeq = energy mean across all interval LAeqs, weighted equally per interval
+    let energySum = 0;
+    let loudest = noisy[0];
+    noisy.forEach(intv => {
+        energySum += Math.pow(10, intv.noiseStats.LAeq / 10);
+        if (intv.noiseStats.LAeq > loudest.noiseStats.LAeq) loudest = intv;
+    });
+    const sessionLAeq = 10 * Math.log10(energySum / noisy.length);
+
+    return {
+        sessionLAeq,
+        loudestLAeq: loudest.noiseStats.LAeq,
+        loudestTime: formatTime(new Date(loudest.startTime)) + '–' + formatTime(new Date(loudest.endTime))
+    };
 }
 
 // ===== TURNING MOVEMENT DIAGRAM =====
