@@ -931,6 +931,11 @@ body {
     border: 1px solid var(--border);
 }
 
+.results-table td {
+    color: var(--text);
+    background: var(--surface);
+}
+
 .results-table th {
     background: var(--primary);
     color: white;
@@ -939,13 +944,14 @@ body {
     top: 0;
 }
 
-.results-table tbody tr:nth-child(even) {
-    background: #f1f3f4;
+.results-table tbody tr:nth-child(even) td {
+    background: var(--surface-alt);
 }
 
-.results-table .total-row {
+.results-table .total-row td {
     font-weight: 700;
-    background: #e0eaf5 !important;
+    color: var(--text);
+    background: var(--primary-soft) !important;
 }
 
 /* ===== HISTORY ===== */
