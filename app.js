@@ -3177,6 +3177,9 @@ async function buildTrafficExcelSheets(wb, session) {
     });
     await addChartSheet(wb, 'Chart - Flow Over Time', buildFlowChart(session), flowChartData);
 
+    // --- Data Tables sheet (pivot-friendly, chart-ready) ---
+    addTrafficDataTablesSheet(wb, session);
+
     // --- Noise sheets (only if session had noise enabled) ---
     if (session.noiseEnabled) {
         const noisyIntervals = session.intervals.filter(i => i.noiseStats);
@@ -3263,6 +3266,217 @@ function buildNoiseChart(session, noisyIntervals) {
             }
         }
     };
+}
+
+// ===== DATA TABLES SHEET =====
+// Adds a single "Data Tables" sheet containing several labelled, wide-format
+// tables (rows × columns) that are ready to be turned into charts by the
+// student using Excel's Insert → Chart. Each table is surrounded by blank
+// rows and a bold title so blocks are easy to select.
+function addTrafficDataTablesSheet(wb, session) {
+    const ws = wb.addWorksheet('Data Tables');
+    const allMovements = getAllMovements(session);
+    const vtLabels = session.vehicleTypes.map(vt => VEHICLE_LABELS_EN[vt] || vt);
+
+    let currentRow = 1;
+
+    // Helper to add a section title row
+    const addTitle = (text) => {
+        const row = ws.getRow(currentRow);
+        row.getCell(1).value = text;
+        row.font = { bold: true, size: 12, color: { argb: 'FF004F9F' } };
+        currentRow++;
+    };
+
+    // Helper to add header row + data rows, then add blank rows after
+    const addBlock = (header, rows) => {
+        const hRow = ws.getRow(currentRow);
+        header.forEach((h, i) => { hRow.getCell(i + 1).value = h; });
+        hRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        hRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004F9F' } };
+        hRow.alignment = { horizontal: 'center' };
+        currentRow++;
+        rows.forEach(r => {
+            const dRow = ws.getRow(currentRow);
+            r.forEach((v, i) => { dRow.getCell(i + 1).value = v; });
+            currentRow++;
+        });
+        currentRow += 2; // blank rows between tables
+    };
+
+    // -- Table 1: Flow per interval per approach -------------------------------
+    addTitle('1. Flow per interval per approach (rows = time, cols = approach)');
+    {
+        const header = ['Interval Start', ...session.approaches, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const approachTotals = session.approaches.map(a => {
+                let total = 0;
+                for (const m of Object.keys(intv.counts[a] || {})) {
+                    for (const vt of Object.keys(intv.counts[a][m] || {})) {
+                        total += intv.counts[a][m][vt];
+                    }
+                }
+                return total;
+            });
+            const intTotal = approachTotals.reduce((a, b) => a + b, 0);
+            return [start, ...approachTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // -- Table 2: Vehicle types per approach -----------------------------------
+    addTitle('2. Vehicle types per approach (rows = approach, cols = vehicle type)');
+    {
+        const header = ['Approach', ...vtLabels, 'Total'];
+        const rows = session.approaches.map(approach => {
+            const vtTotals = session.vehicleTypes.map(vt => {
+                let total = 0;
+                for (const m of Object.keys(allMovements)) {
+                    const movement = allMovements[m];
+                    session.intervals.forEach(intv => {
+                        total += intv.counts[approach]?.[movement]?.[vt] || 0;
+                    });
+                }
+                return total;
+            });
+            const rowTotal = vtTotals.reduce((a, b) => a + b, 0);
+            return [approach, ...vtTotals, rowTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // -- Table 3: Movements per approach ---------------------------------------
+    addTitle('3. Movements per approach (rows = approach, cols = movement)');
+    {
+        // Deduplicate crossing_a/crossing_b into a single "Crossing" column
+        const vehicleMovements = allMovements.filter(m => !isCrossingMovement(m));
+        const hasCrossing = allMovements.some(m => isCrossingMovement(m));
+        const displayMovements = vehicleMovements.slice();
+        if (hasCrossing) displayMovements.push('__crossing__');
+
+        const movementHeaders = displayMovements.map(m =>
+            m === '__crossing__' ? 'Crossing' : (DIRECTION_LABELS_EN[m] || m)
+        );
+        const header = ['Approach', ...movementHeaders, 'Total'];
+        const rows = session.approaches.map(approach => {
+            const movTotals = displayMovements.map(movement => {
+                let total = 0;
+                if (movement === '__crossing__') {
+                    ['crossing_a', 'crossing_b', 'crossing'].forEach(ck => {
+                        const vtForMov = getVehicleTypesForMovement(session, ck);
+                        session.intervals.forEach(intv => {
+                            vtForMov.forEach(vt => {
+                                total += intv.counts[approach]?.[ck]?.[vt] || 0;
+                            });
+                        });
+                    });
+                } else {
+                    const vtForMov = getVehicleTypesForMovement(session, movement);
+                    session.intervals.forEach(intv => {
+                        vtForMov.forEach(vt => {
+                            total += intv.counts[approach]?.[movement]?.[vt] || 0;
+                        });
+                    });
+                }
+                return total;
+            });
+            const rowTotal = movTotals.reduce((a, b) => a + b, 0);
+            return [approach, ...movTotals, rowTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // -- Table 4: Vehicle types per interval (summed across all approaches) ----
+    addTitle('4. Vehicle types per interval (rows = time, cols = vehicle type)');
+    {
+        const header = ['Interval Start', ...vtLabels, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const vtTotals = session.vehicleTypes.map(vt => {
+                let total = 0;
+                session.approaches.forEach(a => {
+                    for (const m of Object.keys(intv.counts[a] || {})) {
+                        total += intv.counts[a][m][vt] || 0;
+                    }
+                });
+                return total;
+            });
+            const intTotal = vtTotals.reduce((a, b) => a + b, 0);
+            return [start, ...vtTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // -- Table 5: Movements per interval ---------------------------------------
+    addTitle('5. Movements per interval (rows = time, cols = movement)');
+    {
+        // Deduplicate crossing_a/crossing_b into a single "Crossing" column
+        const vehicleMovements = allMovements.filter(m => !isCrossingMovement(m));
+        const hasCrossing = allMovements.some(m => isCrossingMovement(m));
+        const displayMovements = vehicleMovements.slice();
+        if (hasCrossing) displayMovements.push('__crossing__');
+
+        const movementHeaders = displayMovements.map(m =>
+            m === '__crossing__' ? 'Crossing' : (DIRECTION_LABELS_EN[m] || m)
+        );
+        const header = ['Interval Start', ...movementHeaders, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const movTotals = displayMovements.map(movement => {
+                let total = 0;
+                if (movement === '__crossing__') {
+                    ['crossing_a', 'crossing_b', 'crossing'].forEach(ck => {
+                        const vtForMov = getVehicleTypesForMovement(session, ck);
+                        session.approaches.forEach(a => {
+                            vtForMov.forEach(vt => {
+                                total += intv.counts[a]?.[ck]?.[vt] || 0;
+                            });
+                        });
+                    });
+                } else {
+                    const vtForMov = getVehicleTypesForMovement(session, movement);
+                    session.approaches.forEach(a => {
+                        vtForMov.forEach(vt => {
+                            total += intv.counts[a]?.[movement]?.[vt] || 0;
+                        });
+                    });
+                }
+                return total;
+            });
+            const intTotal = movTotals.reduce((a, b) => a + b, 0);
+            return [start, ...movTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // -- Table 6: Noise vs flow per interval (only if noise enabled) -----------
+    if (session.noiseEnabled) {
+        const noisyIntervals = session.intervals.filter(i => i.noiseStats);
+        if (noisyIntervals.length > 0) {
+            addTitle('6. Noise vs flow per interval (LAeq + total vehicles)');
+            const header = ['Interval Start', 'LAeq dB(A)', 'LAmax dB(A)', 'Vehicle flow'];
+            const rows = noisyIntervals.map(intv => {
+                const start = formatTime(new Date(intv.startTime));
+                let flow = 0;
+                session.approaches.forEach(a => {
+                    for (const m of Object.keys(intv.counts[a] || {})) {
+                        for (const vt of Object.keys(intv.counts[a][m] || {})) {
+                            flow += intv.counts[a][m][vt];
+                        }
+                    }
+                });
+                return [start, intv.noiseStats.LAeq, intv.noiseStats.LAmax, flow];
+            });
+            addBlock(header, rows);
+        }
+    }
+
+    // Footer tip
+    ws.getRow(currentRow).getCell(1).value = 'Tip: select any block (header + data rows) and use Excel\'s Insert → Chart to create your own figures.';
+    ws.getRow(currentRow).font = { italic: true, size: 10, color: { argb: 'FF666666' } };
+
+    autoSizeColumns(ws);
 }
 
 // ===== RIDE-CHECK EXCEL SHEETS =====
@@ -3389,6 +3603,90 @@ async function buildPTExcelSheets(wb, session) {
         flowData.push([label, b, a]);
     });
     await addChartSheet(wb, 'Chart - PT Flow', buildPTFlowChart(session), flowData);
+
+    // --- Data Tables: PT boarding/alighting per line per interval (wide format) ---
+    addPTDataTablesSheet(wb, session);
+}
+
+// Adds a pivot-friendly "Data Tables" sheet for PT-stop sessions
+function addPTDataTablesSheet(wb, session) {
+    const ws = wb.addWorksheet('Data Tables');
+    let currentRow = 1;
+
+    const addTitle = (text) => {
+        const row = ws.getRow(currentRow);
+        row.getCell(1).value = text;
+        row.font = { bold: true, size: 12, color: { argb: 'FF004F9F' } };
+        currentRow++;
+    };
+
+    const addBlock = (header, rows) => {
+        const hRow = ws.getRow(currentRow);
+        header.forEach((h, i) => { hRow.getCell(i + 1).value = h; });
+        hRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        hRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF004F9F' } };
+        hRow.alignment = { horizontal: 'center' };
+        currentRow++;
+        rows.forEach(r => {
+            const dRow = ws.getRow(currentRow);
+            r.forEach((v, i) => { dRow.getCell(i + 1).value = v; });
+            currentRow++;
+        });
+        currentRow += 2;
+    };
+
+    // Table 1: Boarding per interval per line (rows = time, cols = line)
+    addTitle('1. Boarding per interval per line (rows = time, cols = line)');
+    {
+        const header = ['Interval Start', ...session.lines, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const lineTotals = session.lines.map(line => {
+                return (intv.vehicles || []).filter(v => v.line === line)
+                    .reduce((sum, v) => sum + v.boarding, 0);
+            });
+            const intTotal = lineTotals.reduce((a, b) => a + b, 0);
+            return [start, ...lineTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // Table 2: Alighting per interval per line
+    addTitle('2. Alighting per interval per line (rows = time, cols = line)');
+    {
+        const header = ['Interval Start', ...session.lines, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const lineTotals = session.lines.map(line => {
+                return (intv.vehicles || []).filter(v => v.line === line)
+                    .reduce((sum, v) => sum + v.alighting, 0);
+            });
+            const intTotal = lineTotals.reduce((a, b) => a + b, 0);
+            return [start, ...lineTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // Table 3: Vehicles per interval per line
+    addTitle('3. Vehicles per interval per line (rows = time, cols = line)');
+    {
+        const header = ['Interval Start', ...session.lines, 'Total'];
+        const rows = session.intervals.map(intv => {
+            const start = formatTime(new Date(intv.startTime));
+            const lineTotals = session.lines.map(line =>
+                (intv.vehicles || []).filter(v => v.line === line).length
+            );
+            const intTotal = lineTotals.reduce((a, b) => a + b, 0);
+            return [start, ...lineTotals, intTotal];
+        });
+        addBlock(header, rows);
+    }
+
+    // Footer tip
+    ws.getRow(currentRow).getCell(1).value = 'Tip: select any block (header + data rows) and use Excel\'s Insert → Chart to create your own figures.';
+    ws.getRow(currentRow).font = { italic: true, size: 10, color: { argb: 'FF666666' } };
+
+    autoSizeColumns(ws);
 }
 
 // ===== SheetJS fallback builders (used if ExcelJS/Chart.js fail to load) =====
