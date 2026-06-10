@@ -849,8 +849,8 @@ body {
     font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-    background: #e8eaed;
-    color: var(--text);
+    background: #111827;
+    color: #ffffff;
     min-height: 48px;
     touch-action: manipulation;
 }
