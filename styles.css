@@ -847,10 +847,10 @@ body {
     border: none;
     border-radius: var(--radius);
     font-size: 0.78rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    background: #111827;
-    color: #ffffff;
+    background: #e8eaed;
+    color: #000000;
     min-height: 48px;
     touch-action: manipulation;
 }
