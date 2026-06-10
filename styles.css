@@ -455,6 +455,85 @@ body {
     line-height: 1.4;
 }
 
+/* ===== NOISE CONDITIONS + CALIBRATION ===== */
+.noise-conditions {
+    margin: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-alt);
+    padding: 4px 10px;
+}
+
+.noise-conditions summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 6px 0;
+}
+
+.noise-conditions[open] summary {
+    margin-bottom: 6px;
+}
+
+.cal-live {
+    text-align: center;
+    font-size: 0.95rem;
+    padding: 10px;
+    background: var(--primary-soft);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+}
+
+.cal-live strong {
+    font-size: 1.3rem;
+    color: var(--primary-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.cal-point {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.cal-point-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+}
+
+.cal-captured {
+    font-size: 0.78rem;
+    color: var(--success);
+    font-weight: 700;
+}
+
+.cal-point-row {
+    display: flex;
+    gap: 8px;
+}
+
+.cal-point-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1rem;
+}
+
+.cal-result {
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 8px 0 12px;
+    color: var(--text);
+    min-height: 20px;
+}
+
 /* ===== NOISE STRIP ===== */
 .noise-strip {
     margin: 8px 8px 0;

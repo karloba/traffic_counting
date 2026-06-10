@@ -104,13 +104,81 @@
             <label class="toggle-inline"><input type="checkbox" id="noise-enable"> <span data-i18n="noise_enable">Measure traffic noise (microphone)</span></label>
 
             <div id="noise-options" style="display:none">
+                <!-- Time weighting -->
                 <div class="form-group" style="margin-top:6px">
-                    <label for="noise-offset" data-i18n="noise_calibration_offset">Calibration offset (dB)</label>
-                    <input type="number" id="noise-offset" value="94" step="1" min="0" max="160">
-                    <small class="form-hint" data-i18n="noise_calibration_hint">Add or subtract dB to roughly match a real sound level meter. Saved per device.</small>
+                    <label data-i18n="noise_time_weighting">Time weighting</label>
+                    <div class="submode-toggle">
+                        <label class="submode-option active"><input type="radio" name="noise-weighting" value="fast" checked><span data-i18n="noise_weighting_fast">Fast (125 ms)</span></label>
+                        <label class="submode-option"><input type="radio" name="noise-weighting" value="slow"><span data-i18n="noise_weighting_slow">Slow (1 s)</span></label>
+                    </div>
                 </div>
+
+                <!-- Calibration -->
+                <div class="form-group">
+                    <label data-i18n="noise_calibration">Calibration</label>
+                    <div class="submode-toggle">
+                        <label class="submode-option active"><input type="radio" name="noise-cal-mode" value="single" checked><span data-i18n="noise_cal_single">Single offset</span></label>
+                        <label class="submode-option"><input type="radio" name="noise-cal-mode" value="twopoint"><span data-i18n="noise_cal_twopoint">Two-point</span></label>
+                    </div>
+                </div>
+
+                <div id="noise-cal-single">
+                    <div class="form-group">
+                        <label for="noise-offset" data-i18n="noise_calibration_offset">Calibration offset (dB)</label>
+                        <input type="number" id="noise-offset" value="94" step="1" min="0" max="160">
+                        <small class="form-hint" data-i18n="noise_calibration_hint">Add or subtract dB to roughly match a real sound level meter. Saved per device.</small>
+                    </div>
+                </div>
+
+                <div id="noise-cal-twopoint" style="display:none">
+                    <div class="form-group">
+                        <button type="button" id="btn-noise-calibrate" class="btn-primary" data-i18n="noise_calibrate_btn">Calibrate against a meter…</button>
+                        <small class="form-hint" id="noise-cal-status" data-i18n="noise_cal_twopoint_hint">Capture two reference levels (quiet + loud) next to a real sound level meter. Saved per device.</small>
+                    </div>
+                </div>
+
+                <!-- Measurement conditions (ISO 1996) -->
+                <details class="noise-conditions">
+                    <summary data-i18n="noise_conditions_title">Measurement conditions (ISO 1996, optional)</summary>
+                    <div class="form-group">
+                        <label for="noise-weather" data-i18n="noise_weather">Weather</label>
+                        <select id="noise-weather">
+                            <option value="clear" data-i18n="noise_weather_clear">Clear</option>
+                            <option value="cloudy" data-i18n="noise_weather_cloudy">Cloudy</option>
+                            <option value="light_rain" data-i18n="noise_weather_rain">Light rain (measurement not valid)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="noise-wind" data-i18n="noise_wind">Wind speed (m/s)</label>
+                        <input type="number" id="noise-wind" step="0.5" min="0" max="40" placeholder="< 5 m/s recommended">
+                    </div>
+                    <div class="form-group">
+                        <label for="noise-temp" data-i18n="noise_temp">Temperature (°C)</label>
+                        <input type="number" id="noise-temp" step="1" min="-30" max="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="noise-mic-height" data-i18n="noise_mic_height">Mic height (m)</label>
+                        <input type="number" id="noise-mic-height" step="0.1" min="0" max="10" value="1.2">
+                    </div>
+                    <div class="form-group">
+                        <label for="noise-distance" data-i18n="noise_distance">Distance to road edge (m)</label>
+                        <input type="number" id="noise-distance" step="0.5" min="0" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="noise-surface" data-i18n="noise_surface">Ground surface</label>
+                        <select id="noise-surface">
+                            <option value="hard" data-i18n="noise_surface_hard">Hard (asphalt/concrete)</option>
+                            <option value="soft" data-i18n="noise_surface_soft">Soft (grass/soil)</option>
+                            <option value="mixed" data-i18n="noise_surface_mixed">Mixed</option>
+                        </select>
+                    </div>
+                    <label class="toggle-inline"><input type="checkbox" id="noise-windscreen"> <span data-i18n="noise_windscreen">Windscreen used on microphone</span></label>
+                </details>
+
                 <p class="hint-text" data-i18n="noise_disclaimer" style="margin-top:4px;padding:0;font-size:0.7rem">Uncalibrated reference for relative comparison and educational use only. Not valid for legal compliance measurements. Microphone audio is processed locally and never recorded or uploaded.</p>
             </div>
+
+            <label class="toggle-inline"><input type="checkbox" id="geo-enable"> <span data-i18n="geo_enable">Record location (GPS)</span></label>
 
             <button type="submit" class="btn-primary btn-large" data-i18n="start_counting">Start Counting</button>
         </form>
@@ -431,6 +499,50 @@
                 <button id="btn-close-modal" class="btn-icon">&times;</button>
             </div>
             <div id="summary-body"></div>
+        </div>
+    </div>
+
+    <!-- Two-point noise calibration modal -->
+    <div id="cal-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 data-i18n="noise_calibrate_title">Two-point calibration</h2>
+                <button id="btn-close-cal" class="btn-icon">&times;</button>
+            </div>
+            <div id="cal-body" style="padding:16px">
+                <p class="hint-text" data-i18n="noise_cal_instructions" style="padding:0 0 10px">Hold the phone next to a sound level meter. Capture a quiet moment and a loud moment, entering the meter's dB(A) reading for each. The app will fit a calibration line.</p>
+
+                <div class="cal-live">
+                    <span data-i18n="noise_cal_live_raw">Live raw level</span>:
+                    <strong id="cal-live-raw">—</strong> <small>dBFS(A)</small>
+                </div>
+
+                <div class="cal-point">
+                    <div class="cal-point-head">
+                        <span data-i18n="noise_cal_point_quiet">Quiet reference</span>
+                        <span id="cal-quiet-captured" class="cal-captured">—</span>
+                    </div>
+                    <div class="cal-point-row">
+                        <button type="button" id="btn-cal-capture-quiet" class="btn-small" data-i18n="noise_cal_capture">Capture</button>
+                        <input type="number" id="cal-quiet-ref" step="0.1" placeholder="meter dB(A)">
+                    </div>
+                </div>
+
+                <div class="cal-point">
+                    <div class="cal-point-head">
+                        <span data-i18n="noise_cal_point_loud">Loud reference</span>
+                        <span id="cal-loud-captured" class="cal-captured">—</span>
+                    </div>
+                    <div class="cal-point-row">
+                        <button type="button" id="btn-cal-capture-loud" class="btn-small" data-i18n="noise_cal_capture">Capture</button>
+                        <input type="number" id="cal-loud-ref" step="0.1" placeholder="meter dB(A)">
+                    </div>
+                </div>
+
+                <div id="cal-result" class="cal-result"></div>
+
+                <button type="button" id="btn-cal-save" class="btn-primary btn-large" disabled data-i18n="noise_cal_save">Save calibration</button>
+            </div>
         </div>
     </div>
 

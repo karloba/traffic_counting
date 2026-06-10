@@ -89,6 +89,40 @@ const I18N = {
         noise_loudest_interval: 'Loudest interval',
         noise_unit_db: 'dB(A)',
         noise_interval_stats: 'Interval noise statistics',
+        noise_time_weighting: 'Time weighting',
+        noise_weighting_fast: 'Fast (125 ms)',
+        noise_weighting_slow: 'Slow (1 s)',
+        noise_cal_single: 'Single offset',
+        noise_cal_twopoint: 'Two-point',
+        noise_cal_twopoint_hint: 'Capture two reference levels (quiet + loud) next to a real sound level meter. Saved per device.',
+        noise_calibrate_btn: 'Calibrate against a meter…',
+        noise_calibrate_title: 'Two-point calibration',
+        noise_cal_instructions: 'Hold the phone next to a sound level meter. Capture a quiet moment and a loud moment, entering the meter\'s dB(A) reading for each. The app will fit a calibration line.',
+        noise_cal_live_raw: 'Live raw level',
+        noise_cal_point_quiet: 'Quiet reference',
+        noise_cal_point_loud: 'Loud reference',
+        noise_cal_capture: 'Capture',
+        noise_cal_save: 'Save calibration',
+        noise_cal_fit: 'Fit',
+        noise_cal_saved: 'Saved calibration',
+        noise_conditions_title: 'Measurement conditions (ISO 1996, optional)',
+        noise_conditions_title_short: 'Measurement conditions',
+        noise_weather: 'Weather',
+        noise_weather_clear: 'Clear',
+        noise_weather_cloudy: 'Cloudy',
+        noise_weather_rain: 'Light rain (measurement not valid)',
+        noise_wind: 'Wind speed (m/s)',
+        noise_temp: 'Temperature (°C)',
+        noise_mic_height: 'Mic height (m)',
+        noise_distance: 'Distance to road edge (m)',
+        noise_surface: 'Ground surface',
+        noise_surface_hard: 'Hard (asphalt/concrete)',
+        noise_surface_soft: 'Soft (grass/soil)',
+        noise_surface_mixed: 'Mixed',
+        noise_windscreen: 'Windscreen used on microphone',
+        noise_den_estimate: 'session estimate',
+        geo_enable: 'Record location (GPS)',
+        geo_location: 'Location',
         undo: 'Undo',
         pause: 'Pause',
         resume: 'Resume',
@@ -257,6 +291,40 @@ const I18N = {
         noise_loudest_interval: 'Najbučniji interval',
         noise_unit_db: 'dB(A)',
         noise_interval_stats: 'Statistika buke po intervalima',
+        noise_time_weighting: 'Vremensko usrednjavanje',
+        noise_weighting_fast: 'Brzo (125 ms)',
+        noise_weighting_slow: 'Sporo (1 s)',
+        noise_cal_single: 'Jedna korekcija',
+        noise_cal_twopoint: 'Dvije točke',
+        noise_cal_twopoint_hint: 'Snimite dvije referentne razine (tiho + glasno) uz pravi mjerač buke. Spremljeno po uređaju.',
+        noise_calibrate_btn: 'Kalibriraj prema mjeraču…',
+        noise_calibrate_title: 'Kalibracija u dvije točke',
+        noise_cal_instructions: 'Držite telefon uz mjerač buke. Snimite tihi i glasni trenutak te za svaki upišite očitanje mjerača u dB(A). Aplikacija će izračunati kalibracijski pravac.',
+        noise_cal_live_raw: 'Trenutna sirova razina',
+        noise_cal_point_quiet: 'Tiha referenca',
+        noise_cal_point_loud: 'Glasna referenca',
+        noise_cal_capture: 'Snimi',
+        noise_cal_save: 'Spremi kalibraciju',
+        noise_cal_fit: 'Pravac',
+        noise_cal_saved: 'Spremljena kalibracija',
+        noise_conditions_title: 'Uvjeti mjerenja (ISO 1996, neobavezno)',
+        noise_conditions_title_short: 'Uvjeti mjerenja',
+        noise_weather: 'Vrijeme',
+        noise_weather_clear: 'Vedro',
+        noise_weather_cloudy: 'Oblačno',
+        noise_weather_rain: 'Slaba kiša (mjerenje nije važeće)',
+        noise_wind: 'Brzina vjetra (m/s)',
+        noise_temp: 'Temperatura (°C)',
+        noise_mic_height: 'Visina mikrofona (m)',
+        noise_distance: 'Udaljenost do ruba ceste (m)',
+        noise_surface: 'Podloga',
+        noise_surface_hard: 'Tvrda (asfalt/beton)',
+        noise_surface_soft: 'Meka (trava/zemlja)',
+        noise_surface_mixed: 'Mješovita',
+        noise_windscreen: 'Vjetrobran na mikrofonu',
+        noise_den_estimate: 'procjena sesije',
+        geo_enable: 'Zabilježi lokaciju (GPS)',
+        geo_location: 'Lokacija',
         undo: 'Poništi',
         pause: 'Pauza',
         resume: 'Nastavi',
@@ -618,6 +686,46 @@ function bindEvents() {
         });
     }
 
+    // Calibration mode toggle (single offset vs two-point)
+    document.querySelectorAll('input[name="noise-cal-mode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const mode = radio.value;
+            document.querySelectorAll('input[name="noise-cal-mode"]').forEach(r => {
+                r.closest('.submode-option').classList.toggle('active', r.value === mode);
+            });
+            document.getElementById('noise-cal-single').style.display = mode === 'single' ? '' : 'none';
+            document.getElementById('noise-cal-twopoint').style.display = mode === 'twopoint' ? '' : 'none';
+        });
+    });
+
+    // Time-weighting toggle visual state
+    document.querySelectorAll('input[name="noise-weighting"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.querySelectorAll('input[name="noise-weighting"]').forEach(r => {
+                r.closest('.submode-option').classList.toggle('active', r.checked);
+            });
+        });
+    });
+
+    // Two-point calibration modal
+    const calBtn = document.getElementById('btn-noise-calibrate');
+    if (calBtn) calBtn.addEventListener('click', openCalibrationModal);
+    const calClose = document.getElementById('btn-close-cal');
+    if (calClose) calClose.addEventListener('click', closeCalibrationModal);
+    const calQuiet = document.getElementById('btn-cal-capture-quiet');
+    if (calQuiet) calQuiet.addEventListener('click', () => captureCalPoint('quiet'));
+    const calLoud = document.getElementById('btn-cal-capture-loud');
+    if (calLoud) calLoud.addEventListener('click', () => captureCalPoint('loud'));
+    ['cal-quiet-ref', 'cal-loud-ref'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateCalResult);
+    });
+    const calSave = document.getElementById('btn-cal-save');
+    if (calSave) calSave.addEventListener('click', saveCalibrationFromModal);
+
+    // Restore two-point calibration status label
+    refreshCalStatusLabel();
+
     // Language switcher
     $$('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
@@ -773,7 +881,22 @@ function startSession() {
     const soundAlert = $('#sound-alert').checked;
 
     const noiseEnabled = $('#noise-enable')?.checked || false;
-    const calibrationOffset = parseFloat($('#noise-offset')?.value) || 94;
+    const noiseCal = noiseEnabled ? getNoiseCalFromForm() : null;
+    const geoEnabled = $('#geo-enable')?.checked || false;
+
+    // Gather ISO 1996 measurement conditions (only if noise enabled)
+    let noiseConditions = null;
+    if (noiseEnabled) {
+        noiseConditions = {
+            weather: $('#noise-weather')?.value || '',
+            windSpeed: $('#noise-wind')?.value || '',
+            temperature: $('#noise-temp')?.value || '',
+            micHeight: $('#noise-mic-height')?.value || '',
+            distanceToRoad: $('#noise-distance')?.value || '',
+            surface: $('#noise-surface')?.value || '',
+            windscreen: $('#noise-windscreen')?.checked || false
+        };
+    }
 
     // Build session
     currentSession = {
@@ -787,7 +910,10 @@ function startSession() {
         vehicleTypes,
         soundAlert,
         noiseEnabled,
-        noiseCalibrationOffset: calibrationOffset,
+        noiseCal,
+        noiseCalibrationOffset: noiseCal ? noiseCal.offset : 94,
+        noiseConditions,
+        geoEnabled,
         intervals: [],
         createdAt: new Date().toISOString()
     };
@@ -798,7 +924,7 @@ function startSession() {
 
     // Request microphone & start noise logger if enabled
     if (noiseEnabled) {
-        NoiseLogger.start(calibrationOffset, updateNoiseUI)
+        NoiseLogger.start(noiseCal, updateNoiseUI)
             .then(() => {
                 renderNoiseStrip();
             })
@@ -807,6 +933,16 @@ function startSession() {
                 alert(t('noise_permission_denied'));
                 renderNoiseStrip();
             });
+    }
+
+    // Capture GPS location if enabled (non-blocking)
+    if (geoEnabled) {
+        captureLocation().then(loc => {
+            if (loc) {
+                currentSession.location = loc;
+                saveSession();
+            }
+        });
     }
 
     // Start first interval
@@ -1010,7 +1146,7 @@ function updateNoiseUI(dbA) {
     if (valueEl) valueEl.innerHTML = `${round1(dbA)} <small>dB(A)</small>`;
 
     // Update LAeq chip from running interval samples
-    const stats = NoiseLogger.computeStats(NoiseLogger.intervalSamples);
+    const stats = NoiseLogger.computeStats(NoiseLogger.intervalSamples, NoiseLogger.intervalEnergySum, NoiseLogger.intervalEnergyCount);
     const laeqEl = $('#noise-laeq-value');
     if (laeqEl) laeqEl.textContent = stats ? `${stats.LAeq.toFixed(1)} dB` : '—';
 
@@ -2459,11 +2595,12 @@ function renderIntervalTables(container, session) {
         // Noise summary line below the table for this interval
         if (interval.noiseStats) {
             const ns = interval.noiseStats;
+            const wTag = (ns.weighting === 'slow') ? 'S' : 'F';
             html += `<div class="interval-noise-line">
                 <strong>${t('noise_section_title')}:</strong>
                 LAeq ${ns.LAeq.toFixed(1)} ·
-                LAmax ${ns.LAmax.toFixed(1)} ·
-                LAmin ${ns.LAmin.toFixed(1)} ·
+                LA${wTag}max ${(ns.LAFmax ?? ns.LAmax).toFixed(1)} ·
+                LA${wTag}min ${(ns.LAFmin ?? ns.LAmin).toFixed(1)} ·
                 LA10 ${ns.LA10.toFixed(1)} · LA50 ${ns.LA50.toFixed(1)} · LA90 ${ns.LA90.toFixed(1)} dB(A)
             </div>`;
         }
@@ -2506,11 +2643,15 @@ function buildTrafficCSV(session) {
     });
 
     const noiseHeaders = session.noiseEnabled
-        ? ['LAeq dB(A)', 'LAmin dB(A)', 'LAmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)']
+        ? ['LAeq dB(A)', 'LAFmin dB(A)', 'LAFmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)', 'Period']
+        : [];
+    const geoHeaders = session.location ? ['Latitude', 'Longitude'] : [];
+    const geoCols = session.location
+        ? [session.location.lat.toFixed(6), session.location.lon.toFixed(6)]
         : [];
 
     const headers = ['Site', 'Date', 'Interval Start', 'Interval End', 'Approach', 'Direction',
-        ...vtHeaders, 'Total', ...noiseHeaders];
+        ...vtHeaders, 'Total', ...noiseHeaders, ...geoHeaders];
     const rows = [headers.join(',')];
 
     const allMovements = getAllMovements(session);
@@ -2519,9 +2660,10 @@ function buildTrafficCSV(session) {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
         const noiseCols = session.noiseEnabled && interval.noiseStats
-            ? [interval.noiseStats.LAeq, interval.noiseStats.LAmin, interval.noiseStats.LAmax,
-               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90]
-            : (session.noiseEnabled ? ['', '', '', '', '', ''] : []);
+            ? [interval.noiseStats.LAeq, nsMin(interval.noiseStats), nsMax(interval.noiseStats),
+               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90,
+               denPeriod(new Date(interval.startTime))]
+            : (session.noiseEnabled ? ['', '', '', '', '', '', ''] : []);
 
         session.approaches.forEach(approach => {
             allMovements.forEach(movement => {
@@ -2542,7 +2684,8 @@ function buildTrafficCSV(session) {
                     `"${dirLabel}"`,
                     ...values,
                     total,
-                    ...noiseCols
+                    ...noiseCols,
+                    ...geoCols
                 ].join(','));
             });
         });
@@ -2960,7 +3103,7 @@ async function buildTrafficExcelSheets(wb, session) {
     const allMovements = getAllMovements(session);
     const vtLabels = session.vehicleTypes.map(vt => VEHICLE_LABELS_EN[vt] || vt);
     const noiseHeaders = session.noiseEnabled
-        ? ['LAeq dB(A)', 'LAmin dB(A)', 'LAmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)']
+        ? ['LAeq dB(A)', 'LAFmin dB(A)', 'LAFmax dB(A)', 'LA10 dB(A)', 'LA50 dB(A)', 'LA90 dB(A)', 'Period']
         : [];
 
     // --- Sheet 1: Raw Data ---
@@ -2972,9 +3115,10 @@ async function buildTrafficExcelSheets(wb, session) {
         const start = formatTime(new Date(interval.startTime));
         const end = formatTime(new Date(interval.endTime));
         const noiseCols = session.noiseEnabled && interval.noiseStats
-            ? [interval.noiseStats.LAeq, interval.noiseStats.LAmin, interval.noiseStats.LAmax,
-               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90]
-            : (session.noiseEnabled ? ['', '', '', '', '', ''] : []);
+            ? [interval.noiseStats.LAeq, nsMin(interval.noiseStats), nsMax(interval.noiseStats),
+               interval.noiseStats.LA10, interval.noiseStats.LA50, interval.noiseStats.LA90,
+               denPeriod(new Date(interval.startTime))]
+            : (session.noiseEnabled ? ['', '', '', '', '', '', ''] : []);
         session.approaches.forEach(approach => {
             allMovements.forEach(movement => {
                 const values = session.vehicleTypes.map(vt => interval.counts[approach]?.[movement]?.[vt] || 0);
@@ -3189,25 +3333,62 @@ async function buildTrafficExcelSheets(wb, session) {
             // Disclaimer as first visible row, italic small
             const disclaimerRow = wsNoise.addRow(['Disclaimer: uncalibrated reference for relative comparison and educational use only. Not valid for legal compliance measurements.']);
             disclaimerRow.font = { italic: true, size: 9, color: { argb: 'FF666666' } };
+
+            // Methodology + conditions block
+            const weighting = (noisyIntervals[0].noiseStats.weighting === 'slow') ? 'Slow (1 s)' : 'Fast (125 ms)';
+            const cal = session.noiseCal || {};
+            wsNoise.addRow(['Time weighting', weighting]);
+            wsNoise.addRow(['Calibration', cal.mode === 'twopoint'
+                ? `Two-point regression (gain ${round1(cal.gain || 1)}, offset ${round1(cal.offset || 0)} dB)`
+                : `Single offset (${round1(session.noiseCalibrationOffset || 94)} dB)`]);
+
+            const cond = session.noiseConditions;
+            if (cond) {
+                if (cond.weather) wsNoise.addRow(['Weather', cond.weather]);
+                if (cond.windSpeed !== '' && cond.windSpeed != null) wsNoise.addRow(['Wind speed (m/s)', cond.windSpeed]);
+                if (cond.temperature !== '' && cond.temperature != null) wsNoise.addRow(['Temperature (°C)', cond.temperature]);
+                if (cond.micHeight !== '' && cond.micHeight != null) wsNoise.addRow(['Mic height (m)', cond.micHeight]);
+                if (cond.distanceToRoad !== '' && cond.distanceToRoad != null) wsNoise.addRow(['Distance to road edge (m)', cond.distanceToRoad]);
+                if (cond.surface) wsNoise.addRow(['Ground surface', cond.surface]);
+                wsNoise.addRow(['Windscreen used', cond.windscreen ? 'Yes' : 'No']);
+            }
+            if (session.location) {
+                wsNoise.addRow(['Location (lat, lon)', `${session.location.lat.toFixed(6)}, ${session.location.lon.toFixed(6)}`]);
+                wsNoise.addRow(['GPS accuracy (m)', Math.round(session.location.accuracy)]);
+            }
             wsNoise.addRow([]);
-            wsNoise.addRow(['Interval Start', 'Interval End', 'LAeq dB(A)', 'LAmin', 'LAmax', 'LA10', 'LA50', 'LA90', 'Samples']);
-            styleHeaderRow(wsNoise.getRow(3));
+
+            const headerRowIdx = wsNoise.rowCount + 1;
+            wsNoise.addRow(['Interval Start', 'Interval End', 'Period', 'LAeq dB(A)', 'LAFmin', 'LAFmax', 'LA10', 'LA50', 'LA90', 'Samples']);
+            styleHeaderRow(wsNoise.getRow(headerRowIdx));
             session.intervals.forEach(intv => {
                 if (!intv.noiseStats) return;
                 const ns = intv.noiseStats;
                 wsNoise.addRow([
                     formatTime(new Date(intv.startTime)),
                     formatTime(new Date(intv.endTime)),
-                    ns.LAeq, ns.LAmin, ns.LAmax, ns.LA10, ns.LA50, ns.LA90, ns.sampleCount
+                    denPeriod(new Date(intv.startTime)),
+                    ns.LAeq, nsMin(ns), nsMax(ns), ns.LA10, ns.LA50, ns.LA90, ns.sampleCount
                 ]);
             });
-            // Append summary row
+            // Append summary rows: session LAeq, Lden, Lnight
             const ns = computeSessionNoiseSummary(session);
+            const den = computeDenLevels(session);
+            wsNoise.addRow([]);
             if (ns) {
-                wsNoise.addRow([]);
-                const sumRow = wsNoise.addRow(['Session LAeq', '', ns.sessionLAeq, '', '', '', '', '', '']);
+                const sumRow = wsNoise.addRow(['Session LAeq', '', '', round1(ns.sessionLAeq)]);
                 sumRow.font = { bold: true };
             }
+            if (den && den.Lden !== null) {
+                const r = wsNoise.addRow(['Lden (session estimate)', '', '', den.Lden]);
+                r.font = { bold: true };
+            }
+            if (den && den.Lnight !== null) {
+                const r = wsNoise.addRow(['Lnight (session estimate)', '', '', den.Lnight]);
+                r.font = { bold: true };
+            }
+            const noteRow = wsNoise.addRow(['Note: Lden/Lnight are session-based estimates (penalties: evening +5 dB, night +10 dB), not annual values per EU END 2002/49/EC.']);
+            noteRow.font = { italic: true, size: 9, color: { argb: 'FF666666' } };
             autoSizeColumns(wsNoise);
 
             // Chart sheet: Noise vs flow
@@ -3455,7 +3636,7 @@ function addTrafficDataTablesSheet(wb, session) {
         const noisyIntervals = session.intervals.filter(i => i.noiseStats);
         if (noisyIntervals.length > 0) {
             addTitle('6. Noise vs flow per interval (LAeq + total vehicles)');
-            const header = ['Interval Start', 'LAeq dB(A)', 'LAmax dB(A)', 'Vehicle flow'];
+            const header = ['Interval Start', 'LAeq dB(A)', 'LAFmax dB(A)', 'Vehicle flow'];
             const rows = noisyIntervals.map(intv => {
                 const start = formatTime(new Date(intv.startTime));
                 let flow = 0;
@@ -3466,7 +3647,7 @@ function addTrafficDataTablesSheet(wb, session) {
                         }
                     }
                 });
-                return [start, intv.noiseStats.LAeq, intv.noiseStats.LAmax, flow];
+                return [start, intv.noiseStats.LAeq, nsMax(intv.noiseStats), flow];
             });
             addBlock(header, rows);
         }
@@ -3821,12 +4002,21 @@ const NoiseLogger = {
     sourceNode: null,
     stream: null,
     sampleTimer: null,
-    sparkBuffer: [],         // dB(A) values, last ~300 samples (30s at 10 Hz)
-    sparkBufferMax: 300,
-    intervalSamples: [],     // dB(A) values for the active interval (cleared on interval end)
-    calibrationOffset: 0,    // dB to add to dBFS to get dB(A) SPL
+    sparkBuffer: [],         // time-weighted dB(A) values, last ~30s for the sparkline
+    sparkBufferMax: 600,     // 30s at 50 Hz
+    intervalSamples: [],     // time-weighted dB(A) values for the active interval
+    intervalEnergySum: 0,    // true instantaneous A-weighted energy sum (for LAeq)
+    intervalEnergyCount: 0,
+    calGain: 1,              // calibration slope (regression a in y = a*x + b)
+    calOffset: 0,            // calibration offset (regression b)
+    timeWeighting: 'fast',   // 'fast' (125 ms) or 'slow' (1 s) — IEC 61672
     onUpdate: null,          // callback(currentDb) for UI updates
-    aWeightCache: null,      // cached A-weighting curve for the current sample rate / FFT size
+    onRaw: null,             // callback(rawDbfsA) used by the calibration tool
+    aWeightCache: null,
+    sampleIntervalMs: 20,    // 50 Hz sampling for proper Fast time-weighting resolution
+    warmupRemaining: 0,      // samples to discard at the start (AGC/transient settling)
+    fastPower: 0,            // exponential running mean-square (Fast/Slow time weighting)
+    fastInit: false,
 
     // Convert frequency (Hz) to A-weighting gain in dB (IEC 61672 closed form)
     aWeighting(f) {
@@ -3840,7 +4030,6 @@ const NoiseLogger = {
         return 20 * Math.log10(RA) + 2.00;
     },
 
-    // Pre-compute A-weighting gain per bin (in linear power) once per analyser config
     buildAWeightCache(sampleRate, fftSize) {
         const binCount = fftSize / 2;
         const cache = new Float32Array(binCount);
@@ -3848,17 +4037,37 @@ const NoiseLogger = {
         for (let i = 0; i < binCount; i++) {
             const freq = i * binWidth;
             const gainDb = this.aWeighting(freq);
-            // Convert dB gain to linear power factor
             cache[i] = Math.pow(10, gainDb / 10);
         }
         this.aWeightCache = cache;
     },
 
-    async start(calibrationOffset, onUpdate) {
-        this.calibrationOffset = calibrationOffset || 0;
+    // Read the current raw A-weighted level in dBFS (pre-calibration)
+    readRawDbfsA(buffer) {
+        this.analyser.getFloatFrequencyData(buffer);
+        let totalPower = 0;
+        for (let i = 1; i < buffer.length; i++) {
+            const dBFS = buffer[i];
+            if (!isFinite(dBFS)) continue;
+            const power = Math.pow(10, dBFS / 10);
+            totalPower += power * this.aWeightCache[i];
+        }
+        if (totalPower <= 0 || !isFinite(totalPower)) return null;
+        return 10 * Math.log10(totalPower); // dBFS_A
+    },
+
+    // cal: { gain, offset, weighting }
+    async start(cal, onUpdate) {
+        this.calGain = (cal && cal.gain) || 1;
+        this.calOffset = (cal && typeof cal.offset === 'number') ? cal.offset : 0;
+        this.timeWeighting = (cal && cal.weighting) || 'fast';
         this.onUpdate = onUpdate || null;
         this.sparkBuffer = [];
         this.intervalSamples = [];
+        this.intervalEnergySum = 0;
+        this.intervalEnergyCount = 0;
+        this.fastPower = 0;
+        this.fastInit = false;
 
         try {
             this.stream = await navigator.mediaDevices.getUserMedia({
@@ -3873,7 +4082,6 @@ const NoiseLogger = {
             throw e;
         }
 
-        // Use webkitAudioContext as fallback for older iOS
         const Ctx = window.AudioContext || window.webkitAudioContext;
         this.audioContext = new Ctx();
         this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
@@ -3884,57 +4092,72 @@ const NoiseLogger = {
 
         this.buildAWeightCache(this.audioContext.sampleRate, this.analyser.fftSize);
 
+        // Discard ~1 second of warm-up samples (AGC / filter transients settle)
+        this.warmupRemaining = Math.round(1000 / this.sampleIntervalMs);
+
         this.enabled = true;
 
-        // Sample at ~10 Hz
+        const dt = this.sampleIntervalMs / 1000;                 // seconds per sample
+        const tau = this.timeWeighting === 'slow' ? 1.0 : 0.125; // IEC 61672 time constant
+        const alpha = 1 - Math.exp(-dt / tau);                   // exponential smoothing factor
+
         const buffer = new Float32Array(this.analyser.frequencyBinCount);
         this.sampleTimer = setInterval(() => {
             if (!this.enabled || !this.analyser) return;
-            this.analyser.getFloatFrequencyData(buffer);
+            const dBFS_A = this.readRawDbfsA(buffer);
+            if (dBFS_A === null) return;
 
-            // Sum A-weighted power across all bins
-            let totalPower = 0;
-            for (let i = 1; i < buffer.length; i++) { // skip DC bin
-                const dBFS = buffer[i];
-                if (!isFinite(dBFS)) continue;
-                const power = Math.pow(10, dBFS / 10);     // power per bin (linear, normalised)
-                totalPower += power * this.aWeightCache[i]; // apply A-weighting
-            }
+            // Raw level callback (calibration tool) uses uncalibrated dBFS_A
+            if (this.onRaw) this.onRaw(dBFS_A);
 
-            if (totalPower <= 0 || !isFinite(totalPower)) return;
-            const dBFS_A = 10 * Math.log10(totalPower);
-            const dbA = dBFS_A + this.calibrationOffset;
+            // Apply linear-regression calibration: dB(A) = gain * dBFS_A + offset
+            const dbA = this.calGain * dBFS_A + this.calOffset;
 
-            // Ring buffer for sparkline
-            this.sparkBuffer.push(dbA);
+            // Skip warm-up samples entirely
+            if (this.warmupRemaining > 0) { this.warmupRemaining--; return; }
+
+            // Instantaneous A-weighted power (for true LAeq energy averaging)
+            const instantPower = Math.pow(10, dbA / 10);
+            this.intervalEnergySum += instantPower;
+            this.intervalEnergyCount++;
+
+            // Exponential time weighting (Fast/Slow) in the power domain → LAF/LAS
+            if (!this.fastInit) { this.fastPower = instantPower; this.fastInit = true; }
+            else { this.fastPower += alpha * (instantPower - this.fastPower); }
+            const twLevel = 10 * Math.log10(this.fastPower); // time-weighted dB(A)
+
+            // Sparkline + interval percentile/min/max use the time-weighted level
+            this.sparkBuffer.push(twLevel);
             if (this.sparkBuffer.length > this.sparkBufferMax) this.sparkBuffer.shift();
+            this.intervalSamples.push(twLevel);
 
-            // Accumulator for current interval
-            this.intervalSamples.push(dbA);
-
-            if (this.onUpdate) this.onUpdate(dbA);
-        }, 100); // 10 Hz
+            if (this.onUpdate) this.onUpdate(twLevel);
+        }, this.sampleIntervalMs);
     },
 
-    // Compute statistics for the samples array. Returns null if empty.
-    computeStats(samples) {
+    // Compute statistics. Uses time-weighted samples for percentiles/min/max (LAFmax),
+    // and the separately-accumulated true energy for LAeq.
+    computeStats(samples, energySum, energyCount) {
         if (!samples || samples.length === 0) return null;
 
-        // LAeq: energy mean → log
-        let energySum = 0;
         let lamin = Infinity, lamax = -Infinity;
         for (const v of samples) {
-            energySum += Math.pow(10, v / 10);
             if (v < lamin) lamin = v;
             if (v > lamax) lamax = v;
         }
-        const LAeq = 10 * Math.log10(energySum / samples.length);
 
-        // Percentiles: LAx = level exceeded x% of the time → x-th percentile from the top
-        // i.e. for LA10 we want the value that 10% of samples exceed
+        // LAeq from true instantaneous energy if available, else from sample energy
+        let LAeq;
+        if (energyCount && energyCount > 0) {
+            LAeq = 10 * Math.log10(energySum / energyCount);
+        } else {
+            let es = 0;
+            for (const v of samples) es += Math.pow(10, v / 10);
+            LAeq = 10 * Math.log10(es / samples.length);
+        }
+
         const sorted = [...samples].sort((a, b) => a - b);
         const percentile = (p) => {
-            // LAp: take the value at (1 - p/100) position in ascending sorted array
             const pos = (1 - p / 100) * (sorted.length - 1);
             const lo = Math.floor(pos);
             const hi = Math.ceil(pos);
@@ -3944,24 +4167,27 @@ const NoiseLogger = {
 
         return {
             LAeq: round1(LAeq),
-            LAmin: round1(lamin),
-            LAmax: round1(lamax),
+            LAFmin: round1(lamin),
+            LAFmax: round1(lamax),
             LA10: round1(percentile(10)),
             LA50: round1(percentile(50)),
             LA90: round1(percentile(90)),
+            weighting: this.timeWeighting,
             sampleCount: samples.length
         };
     },
 
-    // Finalize the current interval: compute stats and reset the sample buffer
     finalizeInterval() {
-        const stats = this.computeStats(this.intervalSamples);
+        const stats = this.computeStats(this.intervalSamples, this.intervalEnergySum, this.intervalEnergyCount);
         this.intervalSamples = [];
+        this.intervalEnergySum = 0;
+        this.intervalEnergyCount = 0;
         return stats;
     },
 
     stop() {
         this.enabled = false;
+        this.onRaw = null;
         if (this.sampleTimer) clearInterval(this.sampleTimer);
         this.sampleTimer = null;
         if (this.stream) {
@@ -3980,6 +4206,196 @@ const NoiseLogger = {
 
 function round1(v) {
     return Math.round(v * 10) / 10;
+}
+
+// Backwards-compatible accessors (older saved sessions used LAmin/LAmax)
+function nsMax(ns) { return ns.LAFmax ?? ns.LAmax; }
+function nsMin(ns) { return ns.LAFmin ?? ns.LAmin; }
+
+// Classify a timestamp into the EU END day/evening/night period
+// day 07:00–19:00, evening 19:00–23:00 (+5 dB), night 23:00–07:00 (+10 dB)
+function denPeriod(date) {
+    const h = date.getHours();
+    if (h >= 7 && h < 19) return 'day';
+    if (h >= 19 && h < 23) return 'evening';
+    return 'night';
+}
+function denPenalty(period) {
+    if (period === 'evening') return 5;
+    if (period === 'night') return 10;
+    return 0;
+}
+
+// Compute a session-based Lden estimate and Lnight from interval LAeq values.
+// NOTE: this is a session-based ESTIMATE, not an annual Lden per EU END 2002/49/EC.
+function computeDenLevels(session) {
+    if (!session.noiseEnabled) return null;
+    const noisy = session.intervals.filter(i => i.noiseStats);
+    if (noisy.length === 0) return null;
+
+    let denEnergy = 0, denCount = 0;
+    let nightEnergy = 0, nightCount = 0;
+    const periodCounts = { day: 0, evening: 0, night: 0 };
+
+    noisy.forEach(intv => {
+        const period = denPeriod(new Date(intv.startTime));
+        periodCounts[period]++;
+        const laeq = intv.noiseStats.LAeq;
+        const penalised = laeq + denPenalty(period);
+        denEnergy += Math.pow(10, penalised / 10);
+        denCount++;
+        if (period === 'night') {
+            nightEnergy += Math.pow(10, laeq / 10);
+            nightCount++;
+        }
+    });
+
+    const Lden = denCount > 0 ? 10 * Math.log10(denEnergy / denCount) : null;
+    const Lnight = nightCount > 0 ? 10 * Math.log10(nightEnergy / nightCount) : null;
+
+    return {
+        Lden: Lden !== null ? round1(Lden) : null,
+        Lnight: Lnight !== null ? round1(Lnight) : null,
+        periodCounts
+    };
+}
+
+// ===== NOISE CALIBRATION =====
+// Stored calibration: { mode:'single'|'twopoint', gain, offset } in tc_noise_cal.
+// Effective level: dB(A) = gain * dBFS_A + offset.
+
+function getSavedTwoPointCal() {
+    try {
+        const raw = localStorage.getItem('tc_noise_cal');
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj.gain === 'number' && typeof obj.offset === 'number') return obj;
+    } catch (e) {}
+    return null;
+}
+
+// Build the calibration object to hand to NoiseLogger.start(), from the setup form
+function getNoiseCalFromForm() {
+    const modeRadio = document.querySelector('input[name="noise-cal-mode"]:checked');
+    const mode = modeRadio ? modeRadio.value : 'single';
+    const weightingRadio = document.querySelector('input[name="noise-weighting"]:checked');
+    const weighting = weightingRadio ? weightingRadio.value : 'fast';
+
+    if (mode === 'twopoint') {
+        const saved = getSavedTwoPointCal();
+        if (saved) return { mode: 'twopoint', gain: saved.gain, offset: saved.offset, weighting };
+        // fall back to single offset if no saved two-point calibration
+    }
+    const offset = parseFloat(document.getElementById('noise-offset')?.value) || 94;
+    return { mode: 'single', gain: 1, offset, weighting };
+}
+
+function refreshCalStatusLabel() {
+    const status = document.getElementById('noise-cal-status');
+    if (!status) return;
+    const saved = getSavedTwoPointCal();
+    if (saved) {
+        status.textContent = `${t('noise_cal_saved')}: gain ${round1(saved.gain)}, offset ${round1(saved.offset)} dB`;
+    } else {
+        status.textContent = t('noise_cal_twopoint_hint');
+    }
+}
+
+// --- Two-point calibration modal state & flow ---
+let calState = { quietRaw: null, quietRef: null, loudRaw: null, loudRef: null, latestRaw: null };
+
+async function openCalibrationModal() {
+    calState = { quietRaw: null, quietRef: null, loudRaw: null, loudRef: null, latestRaw: null };
+    document.getElementById('cal-quiet-captured').textContent = '—';
+    document.getElementById('cal-loud-captured').textContent = '—';
+    document.getElementById('cal-quiet-ref').value = '';
+    document.getElementById('cal-loud-ref').value = '';
+    document.getElementById('cal-result').textContent = '';
+    document.getElementById('btn-cal-save').disabled = true;
+
+    document.getElementById('cal-modal').classList.add('active');
+
+    try {
+        await NoiseLogger.start({ gain: 1, offset: 0, weighting: 'fast' }, null);
+        NoiseLogger.onRaw = (raw) => {
+            calState.latestRaw = raw;
+            const el = document.getElementById('cal-live-raw');
+            if (el) el.textContent = round1(raw);
+        };
+    } catch (e) {
+        document.getElementById('cal-result').textContent = t('noise_permission_denied');
+    }
+}
+
+function closeCalibrationModal() {
+    NoiseLogger.stop();
+    document.getElementById('cal-modal').classList.remove('active');
+}
+
+function captureCalPoint(which) {
+    if (calState.latestRaw === null) return;
+    if (which === 'quiet') {
+        calState.quietRaw = calState.latestRaw;
+        document.getElementById('cal-quiet-captured').textContent = `${round1(calState.quietRaw)} dBFS`;
+    } else {
+        calState.loudRaw = calState.latestRaw;
+        document.getElementById('cal-loud-captured').textContent = `${round1(calState.loudRaw)} dBFS`;
+    }
+    if (navigator.vibrate) navigator.vibrate(30);
+    updateCalResult();
+}
+
+function computeRegression() {
+    const q = document.getElementById('cal-quiet-ref').value;
+    const l = document.getElementById('cal-loud-ref').value;
+    calState.quietRef = q === '' ? null : parseFloat(q);
+    calState.loudRef = l === '' ? null : parseFloat(l);
+
+    if (calState.quietRaw === null || calState.loudRaw === null ||
+        calState.quietRef === null || calState.loudRef === null) return null;
+    if (Math.abs(calState.loudRaw - calState.quietRaw) < 0.5) return null; // need separation
+
+    const gain = (calState.loudRef - calState.quietRef) / (calState.loudRaw - calState.quietRaw);
+    const offset = calState.quietRef - gain * calState.quietRaw;
+    return { gain, offset };
+}
+
+function updateCalResult() {
+    const reg = computeRegression();
+    const resultEl = document.getElementById('cal-result');
+    const saveBtn = document.getElementById('btn-cal-save');
+    if (!reg) {
+        resultEl.textContent = '';
+        saveBtn.disabled = true;
+        return;
+    }
+    resultEl.innerHTML = `${t('noise_cal_fit')}: <strong>gain ${round1(reg.gain)}, offset ${round1(reg.offset)} dB</strong>`;
+    saveBtn.disabled = false;
+}
+
+function saveCalibrationFromModal() {
+    const reg = computeRegression();
+    if (!reg) return;
+    localStorage.setItem('tc_noise_cal', JSON.stringify({ mode: 'twopoint', gain: reg.gain, offset: reg.offset }));
+    refreshCalStatusLabel();
+    closeCalibrationModal();
+}
+
+// ===== GEOLOCATION =====
+function captureLocation() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+                timestamp: new Date().toISOString()
+            }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    });
 }
 
 // ===== TRAFFIC ANALYSIS =====
@@ -4204,10 +4620,55 @@ function renderAnalysis(container, session) {
     // Traffic noise card
     const noiseSummary = computeSessionNoiseSummary(session);
     if (noiseSummary) {
+        const den = computeDenLevels(session);
+        const firstNs = session.intervals.find(i => i.noiseStats)?.noiseStats;
+        const wLabel = firstNs && firstNs.weighting === 'slow' ? t('noise_weighting_slow') : t('noise_weighting_fast');
+
+        let detail = `LAeq · ${t('noise_loudest_interval')}: ${noiseSummary.loudestTime} (${noiseSummary.loudestLAeq.toFixed(1)} dB)`;
+        let denLine = '';
+        if (den && (den.Lden !== null || den.Lnight !== null)) {
+            const parts = [];
+            if (den.Lden !== null) parts.push(`L<sub>den</sub> ${den.Lden.toFixed(1)}`);
+            if (den.Lnight !== null) parts.push(`L<sub>night</sub> ${den.Lnight.toFixed(1)}`);
+            denLine = `<div class="analysis-detail">${parts.join(' · ')} dB(A) — ${t('noise_den_estimate')}</div>`;
+        }
+
         html += `<div class="analysis-card">
-            <div class="analysis-title">${t('noise_section_title')}</div>
+            <div class="analysis-title">${t('noise_section_title')} (${wLabel})</div>
             <div class="analysis-value">${noiseSummary.sessionLAeq.toFixed(1)} dB(A)</div>
-            <div class="analysis-detail">LAeq · ${t('noise_loudest_interval')}: ${noiseSummary.loudestTime} (${noiseSummary.loudestLAeq.toFixed(1)} dB)</div>
+            <div class="analysis-detail">${detail}</div>
+            ${denLine}
+        </div>`;
+
+        // Conditions + location card
+        const condBits = [];
+        const cond = session.noiseConditions;
+        if (cond) {
+            if (cond.weather) condBits.push(`${t('noise_weather')}: ${cond.weather}`);
+            if (cond.windSpeed !== '' && cond.windSpeed != null) condBits.push(`${t('noise_wind')}: ${cond.windSpeed}`);
+            if (cond.micHeight !== '' && cond.micHeight != null) condBits.push(`${t('noise_mic_height')}: ${cond.micHeight} m`);
+            if (cond.distanceToRoad !== '' && cond.distanceToRoad != null) condBits.push(`${t('noise_distance')}: ${cond.distanceToRoad} m`);
+        }
+        let locBit = '';
+        if (session.location) {
+            const { lat, lon } = session.location;
+            const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`;
+            locBit = `<div class="analysis-detail"><a href="${mapUrl}" target="_blank" rel="noopener">📍 ${lat.toFixed(5)}, ${lon.toFixed(5)} (±${Math.round(session.location.accuracy)} m)</a></div>`;
+        }
+        if (condBits.length || locBit) {
+            html += `<div class="analysis-card">
+                <div class="analysis-title">${t('noise_conditions_title_short')}</div>
+                ${condBits.length ? `<div class="analysis-detail">${condBits.join(' · ')}</div>` : ''}
+                ${locBit}
+            </div>`;
+        }
+    } else if (session.location) {
+        // Location even without noise
+        const { lat, lon } = session.location;
+        const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`;
+        html += `<div class="analysis-card">
+            <div class="analysis-title">${t('geo_location')}</div>
+            <div class="analysis-detail"><a href="${mapUrl}" target="_blank" rel="noopener">📍 ${lat.toFixed(5)}, ${lon.toFixed(5)} (±${Math.round(session.location.accuracy)} m)</a></div>
         </div>`;
     }
 
