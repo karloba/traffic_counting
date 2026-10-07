@@ -22,8 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      - name: Stamp asset version (cache-busting)
-        run: sed -i "s/__VER__/${GITHUB_SHA::7}/g" index.html
+      - name: Cache-bust assets with hashed filenames
+        run: |
+          VER=${GITHUB_SHA::7}
+          cp app.js "app.$VER.js"
+          cp styles.css "styles.$VER.css"
+          sed -i "s|app\.js?v=__VER__|app.$VER.js|g; s|styles\.css?v=__VER__|styles.$VER.css|g" index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
