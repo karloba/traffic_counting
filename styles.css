@@ -392,6 +392,98 @@ body {
     margin-left: auto;
 }
 
+/* ===== PHASES / GROUPS ===== */
+/* Nav switch (Approaches / Phases) + edit button in the sticky selector bar */
+.nav-switch-btn, .nav-edit-btn {
+    flex: 0 0 auto;
+    border: none;
+    background: var(--surface-alt);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.nav-switch-btn { color: var(--primary); border-right: 1px solid var(--border); }
+.nav-edit-btn { font-size: 1rem; border-left: 1px solid var(--border); }
+
+/* Phase title separator (one-page group mode) + scroll anchor */
+.phase-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 4px 2px;
+    padding: 8px 12px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 10px;
+    font-weight: 700;
+}
+.phase-title-name { flex: 1; }
+.phase-title-total { font-variant-numeric: tabular-nums; }
+
+/* Group editor (inside #groups-modal) */
+.group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.group-chip {
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.group-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.group-chip-add { font-weight: 700; }
+
+.group-name-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.group-name-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+.group-del { flex: 0 0 auto; }
+
+.phase-matrix { display: grid; gap: 4px; align-items: stretch; }
+.pm-rowhead {
+    display: flex; align-items: center;
+    font-size: 0.8rem; font-weight: 600; color: var(--text);
+    padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pm-colhead {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; color: var(--text-secondary);
+    padding: 4px 0;
+}
+.pm-cell {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 40px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--primary);
+    border-radius: 8px;
+    font-size: 1.05rem; font-weight: 800;
+    cursor: pointer;
+}
+.pm-cell.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.groups-footer { display: flex; gap: 8px; margin-top: 14px; }
+.groups-footer .btn-primary { flex: 1; }
+
+/* Dark mode: --primary is a light blue, so white-on-primary fails AA. Flip selected-state
+   text to dark for strong contrast on the light-blue fill (approx 6.7:1). */
+[data-theme="dark"] .phase-title,
+[data-theme="dark"] .group-chip.active,
+[data-theme="dark"] .pm-cell.on {
+    color: var(--bg);
+}
+
 .progress-bar {
     height: 4px;
     background: rgba(255,255,255,0.3);

@@ -49,6 +49,20 @@ const I18N = {
         view_switch_page: 'One page',
         view_switch_tabs: 'Tabs',
         view_toggle_title: 'Switch counting layout (tabs / one page)',
+        nav_approaches: 'Approaches',
+        nav_phases: 'Phases',
+        edit_phases: 'Edit phases…',
+        phases_title: 'Counting phases',
+        phases_hint: 'Group movements into phases (e.g. by signal phase) so you tap only what is green now. One person realistically counts 1–2 streams per phase — use several counters + Merge for full coverage.',
+        phase_add: '+ Add phase',
+        phase_generate: 'Standard phases',
+        phase_save: 'Save phases',
+        phase_delete: 'Delete',
+        phase_name_ph: 'Phase name',
+        phase_default: 'Phase {n}',
+        phase_peds: 'Pedestrians',
+        col_crossings: 'Crossings',
+        phase_none: 'No phases yet. Add one or generate standard phases.',
         pt_counting_hint: 'Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.',
         site_name: 'Site Name',
         site_name_ph: 'e.g. Main St & 2nd Ave',
@@ -254,6 +268,20 @@ const I18N = {
         view_switch_page: 'Jedna stranica',
         view_switch_tabs: 'Kartice',
         view_toggle_title: 'Promijeni raspored brojanja (kartice / jedna stranica)',
+        nav_approaches: 'Privozi',
+        nav_phases: 'Faze',
+        edit_phases: 'Uredi faze…',
+        phases_title: 'Faze brojanja',
+        phases_hint: 'Grupiraj pokrete u faze (npr. po signalnim fazama) da tapkaš samo ono što je sad zeleno. Jedan čovjek realno broji 1–2 toka po fazi — za puno pokrivanje koristi više brojača + Spajanje.',
+        phase_add: '+ Dodaj fazu',
+        phase_generate: 'Standardne faze',
+        phase_save: 'Spremi faze',
+        phase_delete: 'Obriši',
+        phase_name_ph: 'Naziv faze',
+        phase_default: 'Faza {n}',
+        phase_peds: 'Pješaci',
+        col_crossings: 'Prelazi',
+        phase_none: 'Još nema faza. Dodaj jednu ili generiraj standardne.',
         pt_counting_hint: 'Tapnite liniju kad vozilo stigne. Brojite ulaze/izlaze, zatim tapnite Gotovo. Koristite unos broja za prometnija stajališta. Tapnite x na bilo kojem zapisu za brisanje.',
         site_name: 'Naziv lokacije',
         site_name_ph: 'npr. Savska ul. i Vukovarska',
@@ -429,6 +457,13 @@ let currentLang = localStorage.getItem('tc_lang') || 'en';
 
 // Counting-screen layout: 'tabs' (one approach at a time) or 'page' (all approaches stacked)
 let countViewMode = localStorage.getItem('tc_count_view') || 'tabs';
+
+// Counting navigation: 'approach' (per privoz) or 'group' (student-defined faze/grupe)
+let navMode = localStorage.getItem('tc_nav_mode') || 'approach';
+let currentGroupIndex = 0;
+// Phase/group config for the NEXT session (prefilled from saved template);
+// the active session keeps its own copy on currentSession.groups
+let pendingGroups = [];
 
 // Theme: 'light' | 'dark'. Default follows system preference if not set.
 let currentTheme = localStorage.getItem('tc_theme')
@@ -655,6 +690,9 @@ function initSetupForm() {
     // Render approach name inputs
     updateApproachInputs();
     $('#num-approaches').addEventListener('change', updateApproachInputs);
+
+    // Load the saved phase/group template as the default for the next session
+    pendingGroups = loadGroupsTemplate();
 }
 
 function updateApproachInputs() {
@@ -680,6 +718,16 @@ function bindEvents() {
     // Counting-screen layout toggle (tabs / one page)
     const viewToggleBtn = document.getElementById('btn-view-toggle');
     if (viewToggleBtn) viewToggleBtn.addEventListener('click', toggleCountView);
+
+    // Counting phases / groups editor
+    const editPhasesBtn = document.getElementById('btn-edit-phases');
+    if (editPhasesBtn) editPhasesBtn.addEventListener('click', openGroupsModal);
+    const closeGroups = document.getElementById('btn-close-groups');
+    if (closeGroups) closeGroups.addEventListener('click', closeGroupsModal);
+    const genPhases = document.getElementById('btn-gen-phases');
+    if (genPhases) genPhases.addEventListener('click', generateStandardPhases);
+    const saveGroups = document.getElementById('btn-save-groups');
+    if (saveGroups) saveGroups.addEventListener('click', saveGroupsFromModal);
 
     // Noise enable toggle: reveal/hide options + remember calibration
     const noiseEnableBox = document.getElementById('noise-enable');
@@ -921,6 +969,7 @@ function startSession() {
         approaches,
         movements,
         vehicleTypes,
+        groups: deepClone(pendingGroups || []),
         soundAlert,
         noiseEnabled,
         noiseCal,
@@ -932,6 +981,7 @@ function startSession() {
     };
 
     currentApproachIndex = 0;
+    currentGroupIndex = 0;
     undoStack = [];
     isPaused = false;
 
@@ -1229,11 +1279,12 @@ function drawNoiseSparkline() {
 // Render the approach summary strip above the count grid:
 // big total + L/S/R/Crossing pills with sub-totals
 // Shared: compute an approach's grand total + per-movement subtotals (both crossings merged)
-function approachSubtotals(interval, approach) {
+function approachSubtotals(interval, approach, allowed) {
     const subtotals = {};
     let total = 0;
     const ac = (interval && interval.counts[approach]) || {};
     for (const movement of Object.keys(ac)) {
+        if (allowed && !allowed.includes(movement)) continue;
         let s = 0;
         for (const vt of Object.keys(ac[movement])) {
             s += ac[movement][vt];
@@ -1296,32 +1347,348 @@ function renderApproachTabs() {
     const container = $('#approach-tabs');
     container.innerHTML = '';
 
-    currentSession.approaches.forEach((approach, i) => {
-        const btn = document.createElement('button');
-        const isActive = countViewMode === 'tabs' && i === currentApproachIndex;
-        btn.className = 'approach-tab' + (isActive ? ' active' : '');
+    const hasGroups = currentSession && Array.isArray(currentSession.groups) && currentSession.groups.length > 0;
 
-        const total = getApproachTotal(approach);
-        btn.innerHTML = `${approach}<span class="tab-count">${total}</span>`;
+    // Leading nav switch (Approaches / Phases) — only shown once phases are defined
+    if (hasGroups) {
+        const sw = document.createElement('button');
+        sw.className = 'nav-switch-btn';
+        sw.type = 'button';
+        sw.textContent = '⇄ ' + (navMode === 'group' ? t('nav_phases') : t('nav_approaches'));
+        sw.title = navMode === 'group' ? t('nav_phases') : t('nav_approaches');
+        sw.addEventListener('click', toggleNavMode);
+        container.appendChild(sw);
+    }
 
-        btn.addEventListener('click', () => {
-            if (countViewMode === 'page') {
-                // Tabs act as jump links: scroll this approach's block just below the sticky header + tabs
-                const block = $('#count-grid').querySelector(`[data-approach-index="${i}"]`);
-                if (block) {
-                    const header = document.querySelector('.count-header');
-                    const tabsBar = document.querySelector('.approach-tabs');
-                    const offset = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0) + 4;
-                    const y = window.scrollY + block.getBoundingClientRect().top - offset;
-                    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    if (navMode === 'group' && hasGroups) {
+        if (currentGroupIndex >= currentSession.groups.length) currentGroupIndex = 0;
+        const interval = getCurrentInterval();
+        currentSession.groups.forEach((g, i) => {
+            const btn = document.createElement('button');
+            const isActive = countViewMode === 'tabs' && i === currentGroupIndex;
+            btn.className = 'approach-tab' + (isActive ? ' active' : '');
+            btn.appendChild(document.createTextNode(g.name));   // group name is user text -> no innerHTML
+            const c = document.createElement('span');
+            c.className = 'tab-count';
+            c.textContent = groupTotal(interval, g);
+            btn.appendChild(c);
+            btn.addEventListener('click', () => {
+                if (countViewMode === 'page') {
+                    scrollUnitIntoView(`[data-group-index="${i}"]`);
+                } else {
+                    currentGroupIndex = i;
+                    renderCountingScreen();
                 }
-            } else {
-                currentApproachIndex = i;
-                renderCountingScreen();
-            }
+            });
+            container.appendChild(btn);
         });
-        container.appendChild(btn);
+        // Trailing edit affordance
+        const edit = document.createElement('button');
+        edit.className = 'nav-edit-btn';
+        edit.type = 'button';
+        edit.textContent = '✎';   // ✎
+        edit.title = t('edit_phases');
+        edit.addEventListener('click', openGroupsModal);
+        container.appendChild(edit);
+    } else {
+        currentSession.approaches.forEach((approach, i) => {
+            const btn = document.createElement('button');
+            const isActive = countViewMode === 'tabs' && i === currentApproachIndex;
+            btn.className = 'approach-tab' + (isActive ? ' active' : '');
+
+            const total = getApproachTotal(approach);
+            btn.innerHTML = `${approach}<span class="tab-count">${total}</span>`;
+
+            btn.addEventListener('click', () => {
+                if (countViewMode === 'page') {
+                    scrollUnitIntoView(`[data-approach-index="${i}"]`);
+                } else {
+                    currentApproachIndex = i;
+                    renderCountingScreen();
+                }
+            });
+            container.appendChild(btn);
+        });
+    }
+}
+
+// ===== COUNTING PHASES / GROUPS (student-defined, presentation only) =====
+const MOVEMENT_ORDER = ['left', 'straight', 'right', 'uturn', 'crossing_a', 'crossing_b'];
+
+function deepClone(x) { return x ? JSON.parse(JSON.stringify(x)) : x; }
+
+function loadGroupsTemplate() {
+    try {
+        const raw = localStorage.getItem('tc_groups_template');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+}
+function saveGroupsTemplate(groups) {
+    try { localStorage.setItem('tc_groups_template', JSON.stringify(groups || [])); } catch (e) { /* quota / private mode */ }
+}
+
+function groupNavActive() {
+    return navMode === 'group' && currentSession && Array.isArray(currentSession.groups) && currentSession.groups.length > 0;
+}
+
+// Is this movement key actually present in the current session's config?
+function movementInSession(movement) {
+    if (movement === 'crossing_a' || movement === 'crossing_b') {
+        return currentSession.vehicleTypes.some(vt => CROSSING_TYPES.has(vt));
+    }
+    return currentSession.movements.includes(movement);
+}
+
+function orderMovements(arr) {
+    return MOVEMENT_ORDER.filter(m => arr.includes(m));
+}
+
+// Sum all counts belonging to a group's items in the given interval
+function groupTotal(interval, group) {
+    if (!interval || !currentSession || !group) return 0;
+    let total = 0;
+    group.items.forEach(it => {
+        const ap = currentSession.approaches[it.approachIndex];
+        const mv = ap && interval.counts[ap] && interval.counts[ap][it.movement];
+        if (mv) for (const vt of Object.keys(mv)) total += mv[vt];
     });
+    return total;
+}
+
+function toggleNavMode() {
+    navMode = navMode === 'group' ? 'approach' : 'group';
+    localStorage.setItem('tc_nav_mode', navMode);
+    renderCountingScreen();
+}
+
+// Scroll an anchor element (approach block or phase title) to just below the sticky bars
+function scrollUnitIntoView(selector) {
+    const block = $('#count-grid').querySelector(selector);
+    if (!block) return;
+    const header = document.querySelector('.count-header');
+    const tabsBar = document.querySelector('.approach-tabs');
+    const offset = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0) + 4;
+    const y = window.scrollY + block.getBoundingClientRect().top - offset;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+}
+
+// Available approaches / movements for the editor — from the live session, else the setup form
+function getConfigContext() {
+    const onCount = currentSession && document.getElementById('count-screen').classList.contains('active');
+    if (onCount) {
+        return {
+            approaches: currentSession.approaches,
+            movements: currentSession.movements.slice(),
+            hasCrossings: currentSession.vehicleTypes.some(vt => CROSSING_TYPES.has(vt))
+        };
+    }
+    const approaches = Array.from($$('#approach-inputs input')).map((inp, i) => inp.value.trim() || `Approach ${i + 1}`);
+    const movements = Array.from($$('#movement-toggles input:checked')).map(cb => cb.value);
+    const hasCrossings = Array.from($$('#vehicle-toggles input:checked')).some(cb => CROSSING_TYPES.has(cb.value));
+    return { approaches, movements, hasCrossings };
+}
+
+// Build a sensible default set of signal phases from the intersection layout
+function buildStandardPhases(ctx) {
+    const n = ctx.approaches.length;
+    const has = (m) => ctx.movements.includes(m);
+    const mkItems = (approachIdxs, movements) => {
+        const items = [];
+        approachIdxs.forEach(ai => movements.forEach(m => { if (has(m)) items.push({ approachIndex: ai, movement: m }); }));
+        return items;
+    };
+    const groups = [];
+    let idx = 0;
+    const pushPhase = (items) => { if (items.length) { idx++; groups.push({ name: t('phase_default', { n: idx }), items }); } };
+
+    if (n === 4) {
+        // Opposite pairs: 0&2 (e.g. N-S), 1&3 (E-W)
+        pushPhase(mkItems([0, 2], ['straight', 'right', 'uturn']));
+        pushPhase(mkItems([0, 2], ['left']));
+        pushPhase(mkItems([1, 3], ['straight', 'right', 'uturn']));
+        pushPhase(mkItems([1, 3], ['left']));
+    } else {
+        // Fallback: one phase per approach (all its motor movements)
+        for (let ai = 0; ai < n; ai++) {
+            const items = mkItems([ai], ['left', 'straight', 'right', 'uturn']);
+            if (items.length) groups.push({ name: ctx.approaches[ai], items });
+        }
+    }
+    // Dedicated pedestrian phase: every approach's crossings
+    if (ctx.hasCrossings) {
+        const items = [];
+        for (let ai = 0; ai < n; ai++) items.push({ approachIndex: ai, movement: 'crossing_a' }, { approachIndex: ai, movement: 'crossing_b' });
+        groups.push({ name: t('phase_peds'), items });
+    }
+    return groups;
+}
+
+// ----- Group editor modal -----
+let editGroups = [];
+let editGroupIndex = -1;
+let editInSession = false;
+
+function openGroupsModal() {
+    editInSession = !!(currentSession && document.getElementById('count-screen').classList.contains('active'));
+    const source = editInSession ? (currentSession.groups || []) : pendingGroups;
+    editGroups = deepClone(source || []);
+    editGroupIndex = editGroups.length ? 0 : -1;
+    renderGroupsEditor();
+    document.getElementById('groups-modal').classList.add('active');
+}
+
+function closeGroupsModal() {
+    document.getElementById('groups-modal').classList.remove('active');
+}
+
+function addGroup() {
+    editGroups.push({ name: t('phase_default', { n: editGroups.length + 1 }), items: [] });
+    editGroupIndex = editGroups.length - 1;
+    renderGroupsEditor();
+}
+
+function deleteGroup(i) {
+    editGroups.splice(i, 1);
+    if (editGroupIndex >= editGroups.length) editGroupIndex = editGroups.length - 1;
+    renderGroupsEditor();
+}
+
+function generateStandardPhases() {
+    editGroups = buildStandardPhases(getConfigContext());
+    editGroupIndex = editGroups.length ? 0 : -1;
+    renderGroupsEditor();
+}
+
+function movementColLabel(col) {
+    if (col === 'crossings') return '\u{1F6B6}';         // 🚶
+    return DIRECTION_ARROWS[col] || col;
+}
+
+function cellOn(group, ai, col) {
+    const has = (mv) => group.items.some(it => it.approachIndex === ai && it.movement === mv);
+    if (col === 'crossings') return has('crossing_a') || has('crossing_b');
+    return has(col);
+}
+
+function toggleGroupCell(ai, col) {
+    const g = editGroups[editGroupIndex];
+    if (!g) return;
+    const has = (mv) => g.items.some(it => it.approachIndex === ai && it.movement === mv);
+    const remove = (mv) => { g.items = g.items.filter(it => !(it.approachIndex === ai && it.movement === mv)); };
+    const add = (mv) => { if (!has(mv)) g.items.push({ approachIndex: ai, movement: mv }); };
+    if (col === 'crossings') {
+        if (has('crossing_a') || has('crossing_b')) { remove('crossing_a'); remove('crossing_b'); }
+        else { add('crossing_a'); add('crossing_b'); }
+    } else {
+        if (has(col)) remove(col); else add(col);
+    }
+    renderGroupsEditor();
+}
+
+function renderGroupsEditor() {
+    const listWrap = $('#groups-list');
+    const matrixWrap = $('#phase-matrix-wrap');
+    listWrap.innerHTML = '';
+    matrixWrap.innerHTML = '';
+
+    // Group chips + add
+    const chips = document.createElement('div');
+    chips.className = 'group-chips';
+    editGroups.forEach((g, i) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'group-chip' + (i === editGroupIndex ? ' active' : '');
+        chip.textContent = g.name || '—';
+        chip.addEventListener('click', () => { editGroupIndex = i; renderGroupsEditor(); });
+        chips.appendChild(chip);
+    });
+    const addChip = document.createElement('button');
+    addChip.type = 'button';
+    addChip.className = 'group-chip group-chip-add';
+    addChip.textContent = '+';
+    addChip.title = t('phase_add');
+    addChip.addEventListener('click', addGroup);
+    chips.appendChild(addChip);
+    listWrap.appendChild(chips);
+
+    if (editGroupIndex < 0 || !editGroups[editGroupIndex]) {
+        const none = document.createElement('p');
+        none.className = 'hint-text';
+        none.style.padding = '8px 0 0';
+        none.textContent = t('phase_none');
+        matrixWrap.appendChild(none);
+        return;
+    }
+
+    const g = editGroups[editGroupIndex];
+
+    // Name + delete
+    const nameRow = document.createElement('div');
+    nameRow.className = 'group-name-row';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'group-name-input';
+    nameInput.value = g.name;
+    nameInput.placeholder = t('phase_name_ph');
+    nameInput.addEventListener('input', () => {
+        g.name = nameInput.value;
+        const active = chips.querySelector('.group-chip.active');
+        if (active) active.textContent = nameInput.value || '—';
+    });
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-small group-del';
+    delBtn.textContent = t('phase_delete');
+    delBtn.addEventListener('click', () => deleteGroup(editGroupIndex));
+    nameRow.appendChild(nameInput);
+    nameRow.appendChild(delBtn);
+    matrixWrap.appendChild(nameRow);
+
+    // Matrix: approaches (rows) x movements (cols)
+    const ctx = getConfigContext();
+    const cols = ['left', 'straight', 'right', 'uturn'].filter(m => ctx.movements.includes(m));
+    if (ctx.hasCrossings) cols.push('crossings');
+
+    const cellDiv = (text, cls) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; return d; };
+
+    const table = document.createElement('div');
+    table.className = 'phase-matrix';
+    table.style.gridTemplateColumns = `minmax(70px, 1.4fr) repeat(${cols.length}, 1fr)`;
+
+    table.appendChild(cellDiv('', 'pm-rowhead pm-corner'));
+    cols.forEach(c => table.appendChild(cellDiv(movementColLabel(c), 'pm-colhead')));
+
+    ctx.approaches.forEach((ap, ai) => {
+        table.appendChild(cellDiv(ap, 'pm-rowhead'));
+        cols.forEach(c => {
+            const on = cellOn(g, ai, c);
+            const cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'pm-cell' + (on ? ' on' : '');
+            cell.textContent = on ? '✓' : '';
+            cell.addEventListener('click', () => toggleGroupCell(ai, c));
+            table.appendChild(cell);
+        });
+    });
+    matrixWrap.appendChild(table);
+}
+
+function saveGroupsFromModal() {
+    const cleaned = editGroups
+        .filter(g => g.items && g.items.length > 0)
+        .map((g, i) => ({ name: (g.name || '').trim() || t('phase_default', { n: i + 1 }), items: g.items }));
+    if (editInSession) {
+        currentSession.groups = cleaned;
+        if (currentGroupIndex >= cleaned.length) currentGroupIndex = 0;
+        saveSession();
+    } else {
+        pendingGroups = cleaned;
+    }
+    saveGroupsTemplate(cleaned);
+    closeGroupsModal();
+    if (document.getElementById('count-screen').classList.contains('active')) renderCountingScreen();
 }
 
 // Returns the two perpendicular approach indices for a 4-leg intersection
@@ -1353,7 +1720,46 @@ function renderCountGrid() {
     const motorTypes = currentSession.vehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
     const crossingTypes = currentSession.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
 
-    if (countViewMode === 'page') {
+    if (groupNavActive()) {
+        // Navigate by student-defined phases/groups: each unit filters which movements show
+        const groups = currentSession.groups;
+        if (currentGroupIndex >= groups.length) currentGroupIndex = 0;
+
+        const renderGroup = (group, gIdx, withTitle) => {
+            if (withTitle) {
+                const title = document.createElement('div');
+                title.className = 'phase-title';
+                title.dataset.groupIndex = gIdx;
+                const nm = document.createElement('span');
+                nm.className = 'phase-title-name';
+                nm.textContent = group.name;
+                const tot = document.createElement('span');
+                tot.className = 'phase-title-total';
+                tot.textContent = groupTotal(interval, group);
+                title.appendChild(nm);
+                title.appendChild(tot);
+                container.appendChild(title);
+            }
+            // Collect, per approach, the group's movements (deduped, in canonical order)
+            const byApproach = new Map();
+            group.items.forEach(it => {
+                if (it.approachIndex < 0 || it.approachIndex >= currentSession.approaches.length) return;
+                if (!movementInSession(it.movement)) return;
+                if (!byApproach.has(it.approachIndex)) byApproach.set(it.approachIndex, []);
+                if (!byApproach.get(it.approachIndex).includes(it.movement)) byApproach.get(it.approachIndex).push(it.movement);
+            });
+            [...byApproach.keys()].sort((a, b) => a - b).forEach(ai => {
+                const movements = orderMovements(byApproach.get(ai));
+                renderApproachBlock(container, currentSession.approaches[ai], ai, interval, motorTypes, crossingTypes, true, movements);
+            });
+        };
+
+        if (countViewMode === 'page') {
+            groups.forEach((g, i) => renderGroup(g, i, true));
+        } else {
+            renderGroup(groups[currentGroupIndex], currentGroupIndex, false);
+        }
+    } else if (countViewMode === 'page') {
         // All approaches stacked on one scrollable screen (no tab switching)
         currentSession.approaches.forEach((approach, idx) => {
             renderApproachBlock(container, approach, idx, interval, motorTypes, crossingTypes, true);
@@ -1367,9 +1773,9 @@ function renderCountGrid() {
     window.scrollTo(0, prevScroll);
 }
 
-// Render one approach's full set of sections (cars + crossings), optionally with a header.
-// Used for the single active approach (tabs mode) and for every approach (one-page mode).
-function renderApproachBlock(container, approach, approachIndex, interval, motorTypes, crossingTypes, showHeader) {
+// Render one approach's sections (cars + crossings), optionally with a header.
+// movementsFilter (optional): only render these movement keys (used in phase/group mode).
+function renderApproachBlock(container, approach, approachIndex, interval, motorTypes, crossingTypes, showHeader, movementsFilter) {
     if (!interval.counts[approach]) interval.counts[approach] = {};
 
     // Migrate old `crossing` data to `crossing_a` if present
@@ -1388,7 +1794,11 @@ function renderApproachBlock(container, approach, approachIndex, interval, motor
         });
     }
 
-    // One-page mode: per-approach header (name + running totals) doubling as a scroll anchor
+    // Which movements to render (filtered in phase/group mode, else all configured)
+    const motorMovements = currentSession.movements.filter(m => !movementsFilter || movementsFilter.includes(m));
+    const crossingKeys = ['crossing_a', 'crossing_b'].filter(k => !movementsFilter || movementsFilter.includes(k));
+
+    // Header (name + running totals), doubling as a scroll anchor
     if (showHeader) {
         const header = document.createElement('div');
         header.className = 'approach-block-header';
@@ -1398,7 +1808,7 @@ function renderApproachBlock(container, approach, approachIndex, interval, motor
         name.className = 'approach-block-name';
         name.textContent = approach;   // user-entered name -> textContent, never innerHTML
 
-        const { total, subtotals } = approachSubtotals(interval, approach);
+        const { total, subtotals } = approachSubtotals(interval, approach, movementsFilter || null);
         const totalEl = document.createElement('span');
         totalEl.className = 'approach-block-total';
         totalEl.textContent = total;
@@ -1415,18 +1825,20 @@ function renderApproachBlock(container, approach, approachIndex, interval, motor
 
     // Vehicle turning movements
     if (motorTypes.length > 0) {
-        currentSession.movements.forEach(movement => {
+        motorMovements.forEach(movement => {
             renderDirectionSection(container, approach, movement, motorTypes, interval);
         });
     }
 
     // Crossing sections per perpendicular direction
-    if (crossingTypes.length > 0) {
+    if (crossingTypes.length > 0 && crossingKeys.length > 0) {
         const perp = getPerpendicularApproaches(approachIndex);
         const keys = ['crossing_a', 'crossing_b'];
         perp.forEach((perpIdx, i) => {
+            const key = keys[i];
+            if (!crossingKeys.includes(key)) return;
             const dirName = currentSession.approaches[perpIdx];
-            renderCrossingDirectionSection(container, approach, keys[i], dirName, crossingTypes, interval);
+            renderCrossingDirectionSection(container, approach, key, dirName, crossingTypes, interval);
         });
     }
 }

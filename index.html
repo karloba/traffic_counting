@@ -84,6 +84,10 @@
             </div>
 
             <div class="form-group">
+                <button type="button" id="btn-edit-phases" class="btn-small" data-i18n="edit_phases">Edit phases…</button>
+            </div>
+
+            <div class="form-group">
                 <label for="interval-minutes" data-i18n="time_interval">Time Interval (minutes)</label>
                 <select id="interval-minutes">
                     <option value="5">5</option>
@@ -543,6 +547,25 @@
                 <div id="cal-result" class="cal-result"></div>
 
                 <button type="button" id="btn-cal-save" class="btn-primary btn-large" disabled data-i18n="noise_cal_save">Save calibration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Counting phases / groups editor -->
+    <div id="groups-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 data-i18n="phases_title">Counting phases</h2>
+                <button id="btn-close-groups" class="btn-icon">&times;</button>
+            </div>
+            <div id="groups-body" style="padding:16px">
+                <p class="hint-text" data-i18n="phases_hint" style="padding:0 0 10px">Group movements into phases so you tap only what is green now.</p>
+                <div id="groups-list"></div>
+                <div id="phase-matrix-wrap"></div>
+                <div class="groups-footer">
+                    <button type="button" id="btn-gen-phases" class="btn-small" data-i18n="phase_generate">Standard phases</button>
+                    <button type="button" id="btn-save-groups" class="btn-primary" data-i18n="phase_save">Save phases</button>
+                </div>
             </div>
         </div>
     </div>
