@@ -328,14 +328,68 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     font-size: 1rem;
     padding-bottom: 8px;
 }
+
+#interval-label { margin-right: auto; }
 
 #timer-remaining {
     font-size: 1.3rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+}
+
+/* Counting-screen layout toggle (sits in the primary header, white on blue in both themes) */
+.view-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    background: rgba(0, 0, 0, 0.22);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+.view-toggle-btn:active { background: rgba(0, 0, 0, 0.36); }
+
+/* Per-approach header shown in one-page counting mode */
+.approach-block-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 14px 4px 2px;
+    padding: 8px 12px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.approach-block-header:first-child { margin-top: 4px; }
+.approach-block-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+.approach-block-total {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+}
+.approach-block-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-left: auto;
 }
 
 .progress-bar {

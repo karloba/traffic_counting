@@ -46,6 +46,9 @@ const I18N = {
         sum: 'Sum',
         merge_hint: 'Select 2 or more .xlsx files exported by students counting at the same intersection. Files will be merged by combining approaches and summing overlapping data.',
         counting_hint: 'Tap a button to count. Long-press to subtract. Use tabs to switch approach. Undo reverses your last tap.',
+        view_switch_page: 'One page',
+        view_switch_tabs: 'Tabs',
+        view_toggle_title: 'Switch counting layout (tabs / one page)',
         pt_counting_hint: 'Tap a line when a vehicle arrives. Count boarding/alighting, then tap Done. Use number entry for busy stops. Tap x on any log entry to delete it.',
         site_name: 'Site Name',
         site_name_ph: 'e.g. Main St & 2nd Ave',
@@ -248,6 +251,9 @@ const I18N = {
         sum: 'Suma',
         merge_hint: 'Odaberite 2 ili više .xlsx datoteka koje su studenti izvezli dok su brojali na istom raskrižju. Datoteke će se spojiti kombiniranjem privoza i zbrajanjem preklapajućih podataka.',
         counting_hint: 'Tapnite gumb za brojanje. Dugi pritisak za oduzimanje. Koristite kartice za promjenu privoza. Poništi vraća zadnji potez.',
+        view_switch_page: 'Jedna stranica',
+        view_switch_tabs: 'Kartice',
+        view_toggle_title: 'Promijeni raspored brojanja (kartice / jedna stranica)',
         pt_counting_hint: 'Tapnite liniju kad vozilo stigne. Brojite ulaze/izlaze, zatim tapnite Gotovo. Koristite unos broja za prometnija stajališta. Tapnite x na bilo kojem zapisu za brisanje.',
         site_name: 'Naziv lokacije',
         site_name_ph: 'npr. Savska ul. i Vukovarska',
@@ -420,6 +426,9 @@ const I18N = {
 };
 
 let currentLang = localStorage.getItem('tc_lang') || 'en';
+
+// Counting-screen layout: 'tabs' (one approach at a time) or 'page' (all approaches stacked)
+let countViewMode = localStorage.getItem('tc_count_view') || 'tabs';
 
 // Theme: 'light' | 'dark'. Default follows system preference if not set.
 let currentTheme = localStorage.getItem('tc_theme')
@@ -667,6 +676,10 @@ function bindEvents() {
     // Theme toggle
     const themeBtn = document.getElementById('btn-theme');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+    // Counting-screen layout toggle (tabs / one page)
+    const viewToggleBtn = document.getElementById('btn-view-toggle');
+    if (viewToggleBtn) viewToggleBtn.addEventListener('click', toggleCountView);
 
     // Noise enable toggle: reveal/hide options + remember calibration
     const noiseEnableBox = document.getElementById('noise-enable');
@@ -1127,6 +1140,26 @@ function renderCountingScreen() {
     renderApproachTotalStrip();
     renderNoiseStrip();
     renderCountGrid();
+    updateViewToggleLabel();
+}
+
+// Counting-screen layout toggle (Tabs <-> One page)
+function toggleCountView() {
+    countViewMode = countViewMode === 'page' ? 'tabs' : 'page';
+    localStorage.setItem('tc_count_view', countViewMode);
+    renderCountingScreen();
+}
+
+function updateViewToggleLabel() {
+    const btn = document.getElementById('btn-view-toggle');
+    if (!btn) return;
+    // Label shows the layout you'll switch TO
+    if (countViewMode === 'page') {
+        btn.innerHTML = `<span aria-hidden="true">▭</span> ${t('view_switch_tabs')}`;
+    } else {
+        btn.innerHTML = `<span aria-hidden="true">▦</span> ${t('view_switch_page')}`;
+    }
+    btn.title = t('view_toggle_title');
 }
 
 // Show/hide the noise strip based on session state
@@ -1195,12 +1228,56 @@ function drawNoiseSparkline() {
 
 // Render the approach summary strip above the count grid:
 // big total + L/S/R/Crossing pills with sub-totals
+// Shared: compute an approach's grand total + per-movement subtotals (both crossings merged)
+function approachSubtotals(interval, approach) {
+    const subtotals = {};
+    let total = 0;
+    const ac = (interval && interval.counts[approach]) || {};
+    for (const movement of Object.keys(ac)) {
+        let s = 0;
+        for (const vt of Object.keys(ac[movement])) {
+            s += ac[movement][vt];
+        }
+        total += s;
+        if (movement === 'crossing_a' || movement === 'crossing_b' || movement === 'crossing') {
+            subtotals['crossing'] = (subtotals['crossing'] || 0) + s;
+        } else {
+            subtotals[movement] = (subtotals[movement] || 0) + s;
+        }
+    }
+    return { total, subtotals };
+}
+
+// Shared: build the L/S/R/U/crossing summary pills from precomputed subtotals
+function approachPillsHTML(subtotals) {
+    const pillFor = (mv, label) => {
+        const v = subtotals[mv] || 0;
+        if (v === 0) return '';
+        return `<span class="total-pill total-pill-${mv}">${label} ${v}</span>`;
+    };
+    return [
+        pillFor('left', DIRECTION_ARROWS.left),
+        pillFor('straight', DIRECTION_ARROWS.straight),
+        pillFor('right', DIRECTION_ARROWS.right),
+        pillFor('uturn', DIRECTION_ARROWS.uturn),
+        pillFor('crossing', '\u{1F6B6}')
+    ].filter(Boolean).join('');
+}
+
 function renderApproachTotalStrip() {
     const strip = $('#approach-total-strip');
     if (!strip || !currentSession) return;
 
+    // In one-page mode each approach has its own inline header, so the single strip is hidden
+    if (countViewMode === 'page') {
+        strip.style.display = 'none';
+        strip.innerHTML = '';
+        return;
+    }
+
     const approach = currentSession.approaches[currentApproachIndex];
-    const total = getApproachTotal(approach);
+    const interval = getCurrentInterval();
+    const { total, subtotals } = approachSubtotals(interval, approach);
 
     if (total === 0) {
         strip.style.display = 'none';
@@ -1208,43 +1285,9 @@ function renderApproachTotalStrip() {
         return;
     }
 
-    const interval = getCurrentInterval();
-    if (!interval || !interval.counts[approach]) {
-        strip.style.display = 'none';
-        return;
-    }
-
-    // Compute per-movement subtotals (including both crossings merged)
-    const subtotals = {};
-    for (const movement of Object.keys(interval.counts[approach])) {
-        let s = 0;
-        for (const vt of Object.keys(interval.counts[approach][movement])) {
-            s += interval.counts[approach][movement][vt];
-        }
-        if (movement === 'crossing_a' || movement === 'crossing_b' || movement === 'crossing') {
-            subtotals['crossing'] = (subtotals['crossing'] || 0) + s;
-        } else {
-            subtotals[movement] = s;
-        }
-    }
-
-    const pillFor = (mv, label) => {
-        const v = subtotals[mv] || 0;
-        if (v === 0) return '';
-        return `<span class="total-pill total-pill-${mv}">${label} ${v}</span>`;
-    };
-
-    const pills = [
-        pillFor('left', DIRECTION_ARROWS.left),
-        pillFor('straight', DIRECTION_ARROWS.straight),
-        pillFor('right', DIRECTION_ARROWS.right),
-        pillFor('uturn', DIRECTION_ARROWS.uturn),
-        pillFor('crossing', '\u{1F6B6}')
-    ].filter(Boolean).join('');
-
     strip.innerHTML = `
         <div class="approach-total-number">${total}</div>
-        <div class="approach-total-pills">${pills}</div>
+        <div class="approach-total-pills">${approachPillsHTML(subtotals)}</div>
     `;
     strip.style.display = 'flex';
 }
@@ -1255,14 +1298,27 @@ function renderApproachTabs() {
 
     currentSession.approaches.forEach((approach, i) => {
         const btn = document.createElement('button');
-        btn.className = 'approach-tab' + (i === currentApproachIndex ? ' active' : '');
+        const isActive = countViewMode === 'tabs' && i === currentApproachIndex;
+        btn.className = 'approach-tab' + (isActive ? ' active' : '');
 
         const total = getApproachTotal(approach);
         btn.innerHTML = `${approach}<span class="tab-count">${total}</span>`;
 
         btn.addEventListener('click', () => {
-            currentApproachIndex = i;
-            renderCountingScreen();
+            if (countViewMode === 'page') {
+                // Tabs act as jump links: scroll this approach's block just below the sticky header + tabs
+                const block = $('#count-grid').querySelector(`[data-approach-index="${i}"]`);
+                if (block) {
+                    const header = document.querySelector('.count-header');
+                    const tabsBar = document.querySelector('.approach-tabs');
+                    const offset = (header ? header.offsetHeight : 0) + (tabsBar ? tabsBar.offsetHeight : 0) + 4;
+                    const y = window.scrollY + block.getBoundingClientRect().top - offset;
+                    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+                }
+            } else {
+                currentApproachIndex = i;
+                renderCountingScreen();
+            }
         });
         container.appendChild(btn);
     });
@@ -1289,6 +1345,7 @@ function getPerpendicularApproaches(approachIndex) {
 
 function renderCountGrid() {
     const container = $('#count-grid');
+    const prevScroll = window.scrollY;   // the page (not the grid) scrolls; preserve it across the full re-render
     container.innerHTML = '';
     const interval = getCurrentInterval();
     if (!interval) return;
@@ -1296,7 +1353,23 @@ function renderCountGrid() {
     const motorTypes = currentSession.vehicleTypes.filter(vt => !CROSSING_TYPES.has(vt));
     const crossingTypes = currentSession.vehicleTypes.filter(vt => CROSSING_TYPES.has(vt));
 
-    const approach = currentSession.approaches[currentApproachIndex];
+    if (countViewMode === 'page') {
+        // All approaches stacked on one scrollable screen (no tab switching)
+        currentSession.approaches.forEach((approach, idx) => {
+            renderApproachBlock(container, approach, idx, interval, motorTypes, crossingTypes, true);
+        });
+    } else {
+        // Classic: one approach at a time
+        const idx = currentApproachIndex;
+        renderApproachBlock(container, currentSession.approaches[idx], idx, interval, motorTypes, crossingTypes, false);
+    }
+
+    window.scrollTo(0, prevScroll);
+}
+
+// Render one approach's full set of sections (cars + crossings), optionally with a header.
+// Used for the single active approach (tabs mode) and for every approach (one-page mode).
+function renderApproachBlock(container, approach, approachIndex, interval, motorTypes, crossingTypes, showHeader) {
     if (!interval.counts[approach]) interval.counts[approach] = {};
 
     // Migrate old `crossing` data to `crossing_a` if present
@@ -1315,20 +1388,45 @@ function renderCountGrid() {
         });
     }
 
-    // Render vehicle turning movements
-    currentSession.movements.forEach(movement => {
-        if (motorTypes.length === 0) return;
-        renderDirectionSection(container, approach, movement, motorTypes, interval);
-    });
+    // One-page mode: per-approach header (name + running totals) doubling as a scroll anchor
+    if (showHeader) {
+        const header = document.createElement('div');
+        header.className = 'approach-block-header';
+        header.dataset.approachIndex = approachIndex;
 
-    // Render crossing sections per perpendicular direction
+        const name = document.createElement('span');
+        name.className = 'approach-block-name';
+        name.textContent = approach;   // user-entered name -> textContent, never innerHTML
+
+        const { total, subtotals } = approachSubtotals(interval, approach);
+        const totalEl = document.createElement('span');
+        totalEl.className = 'approach-block-total';
+        totalEl.textContent = total;
+
+        const pills = document.createElement('span');
+        pills.className = 'approach-block-pills';
+        pills.innerHTML = approachPillsHTML(subtotals);   // numbers + fixed labels only
+
+        header.appendChild(name);
+        header.appendChild(totalEl);
+        header.appendChild(pills);
+        container.appendChild(header);
+    }
+
+    // Vehicle turning movements
+    if (motorTypes.length > 0) {
+        currentSession.movements.forEach(movement => {
+            renderDirectionSection(container, approach, movement, motorTypes, interval);
+        });
+    }
+
+    // Crossing sections per perpendicular direction
     if (crossingTypes.length > 0) {
-        const perp = getPerpendicularApproaches(currentApproachIndex);
+        const perp = getPerpendicularApproaches(approachIndex);
         const keys = ['crossing_a', 'crossing_b'];
         perp.forEach((perpIdx, i) => {
             const dirName = currentSession.approaches[perpIdx];
-            const movementKey = keys[i];
-            renderCrossingDirectionSection(container, approach, movementKey, dirName, crossingTypes, interval);
+            renderCrossingDirectionSection(container, approach, keys[i], dirName, crossingTypes, interval);
         });
     }
 }
